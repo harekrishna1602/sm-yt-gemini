@@ -48,7 +48,7 @@ class IdeaAdapter(
         holder.txtTitle.text = if (idea.title.isNotBlank()) {
             "Title: ${idea.title}"
         } else {
-            "Tap to analyze video, script & package"
+            "Tap to create with Mobile Gemini"
         }
 
         val wordCount = if (idea.script.isBlank()) 0 else idea.script.trim().split(Regex("\\s+")).size

@@ -1,8 +1,8 @@
-# sm-yt-gemini (Phase 4 — v0.4.0)
+# sm-yt-gemini (v0.6.0 — Thumbnail Integration)
 
 Official native Android Creator OS by **Studio Mogli**.
 
-## Phase 4 Updates
-- **Native YouTube Channel Stats (`YouTubeDataClient.kt`):** Connect your `@handle` + YouTube Data API v3 key to display live Subscribers, Total Views, and Video Count natively—no zoomed-out desktop Studio pages.
-- **Watch-vs-Create Accountability & Auto Creation Timer:** Automatically tracks active creation minutes while you work inside any Idea card, compares them against your daily watch time, and tracks your daily Creator Streak.
-- **1-Tap Binge-to-Build AI Flip:** Turns whatever topic you were binge-watching into a contrarian/remix Idea card dropped straight into your Workbench.
+## Phase 2: Thumbnail Integration (YT Studio + Mobile Gemini)
+- **YT Studio Thumb:** Copies your structured 16:9 thumbnail prompt and launches the official **YouTube Studio Android app** (`com.google.android.apps.youtube.creator`) directly so you can generate or upload thumbnails with YT Studio's built-in Gemini.
+- **Gemini Thumb (with Reference Photo):** Generates a 16:9 thumbnail in your **Mobile Gemini app**—with an option to attach your reference Face / Mask / Brand photo in one tap.
+- **Instant Gallery Attach:** Attach the saved thumbnail right onto your Idea card so it shows across your Workbench.

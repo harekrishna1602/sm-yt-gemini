@@ -32,12 +32,7 @@ class ProjectDetailActivity : AppCompatActivity() {
     private lateinit var currentIdea: VideoIdea
 
     private lateinit var edtVideoLink: EditText
-    private lateinit var btnPickLocalVideo: Button
-    private lateinit var btnAnalyzeLink: Button
     private lateinit var imgThumbnailPreview: ImageView
-    private lateinit var btnGenThumbnail: Button
-    private lateinit var btnPickThumbGallery: Button
-
     private lateinit var edtAngle: EditText
     private lateinit var edtScript: EditText
     private lateinit var edtTitle: EditText
@@ -46,12 +41,7 @@ class ProjectDetailActivity : AppCompatActivity() {
     private lateinit var txtThumbGuard: TextView
     private lateinit var edtDescription: EditText
     private lateinit var edtTags: EditText
-    private lateinit var btnAiHook: Button
-    private lateinit var btnAiPackage: Button
 
-    private var lastThumbnailPrompt: String = ""
-
-    // Phase 4: Automatically tracks active creation time while working on an idea
     private val createTimerHandler = Handler(Looper.getMainLooper())
     private val createTimerRunnable = object : Runnable {
         override fun run() {
@@ -75,26 +65,33 @@ class ProjectDetailActivity : AppCompatActivity() {
         }
     }
 
-    private val pickVideoLauncher = registerForActivityResult(
+    private val pickVideoForGeminiLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            val apiKey = requireApiKey() ?: return@registerForActivityResult
-            btnPickLocalVideo.isEnabled = false
-            btnPickLocalVideo.text = "Analyzing Video..."
-            GeminiEngine.analyzeLocalVideo(
-                context = this,
-                apiKey = apiKey,
+            val prompt = MobileGeminiBridge.buildPackagingPrompt(
                 creatorStyle = store.getCreatorStyle(),
-                videoUri = uri,
-                angleHint = edtAngle.text.toString().trim()
-            ) { result ->
-                runOnUiThread {
-                    btnPickLocalVideo.isEnabled = true
-                    btnPickLocalVideo.text = "Pick Device Video"
-                    handleMetadataResult(result)
-                }
-            }
+                angle = edtAngle.text.toString().trim(),
+                script = edtScript.text.toString().trim(),
+                videoLink = edtVideoLink.text.toString().trim()
+            )
+            MobileGeminiBridge.openInMobileGemini(this, prompt, mediaUri = uri, mimeType = "video/*")
+        }
+    }
+
+    // Phase 2: Pick a reference Face / Mask / Brand photo and send it + 16:9 thumbnail prompt to Mobile Gemini
+    private val pickRefPhotoForThumbLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val prompt = MobileGeminiBridge.buildThumbnailPrompt(
+                creatorStyle = store.getCreatorStyle(),
+                title = edtTitle.text.toString().trim(),
+                thumbText = edtThumbText.text.toString().trim(),
+                angle = edtAngle.text.toString().trim(),
+                hasRefImage = true
+            )
+            MobileGeminiBridge.openInMobileGemini(this, prompt, mediaUri = uri, mimeType = "image/*")
         }
     }
 
@@ -109,7 +106,7 @@ class ProjectDetailActivity : AppCompatActivity() {
                 }
                 currentIdea.thumbnailPath = outFile.absolutePath
                 renderThumbnailPreview()
-                Toast.makeText(this, "Thumbnail attached!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Thumbnail attached to Idea card!", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Toast.makeText(this, "Could not attach image", Toast.LENGTH_SHORT).show()
             }
@@ -129,12 +126,7 @@ class ProjectDetailActivity : AppCompatActivity() {
         }
 
         edtVideoLink = findViewById(R.id.edtVideoLink)
-        btnPickLocalVideo = findViewById(R.id.btnPickLocalVideo)
-        btnAnalyzeLink = findViewById(R.id.btnAnalyzeLink)
         imgThumbnailPreview = findViewById(R.id.imgThumbnailPreview)
-        btnGenThumbnail = findViewById(R.id.btnGenThumbnail)
-        btnPickThumbGallery = findViewById(R.id.btnPickThumbGallery)
-
         edtAngle = findViewById(R.id.edtAngle)
         edtScript = findViewById(R.id.edtScript)
         edtTitle = findViewById(R.id.edtTitle)
@@ -143,8 +135,6 @@ class ProjectDetailActivity : AppCompatActivity() {
         txtThumbGuard = findViewById(R.id.txtThumbGuard)
         edtDescription = findViewById(R.id.edtDescription)
         edtTags = findViewById(R.id.edtTags)
-        btnAiHook = findViewById(R.id.btnAiHook)
-        btnAiPackage = findViewById(R.id.btnAiPackage)
 
         edtVideoLink.setText(currentIdea.videoLink)
         edtAngle.setText(currentIdea.angle)
@@ -168,35 +158,80 @@ class ProjectDetailActivity : AppCompatActivity() {
             saveAndFinish(markPublished = false)
         }
 
-        btnPickLocalVideo.setOnClickListener {
-            if (requireApiKey() != null) pickVideoLauncher.launch("video/*")
+        findViewById<Button>(R.id.btnSendVideoToGemini).setOnClickListener {
+            pickVideoForGeminiLauncher.launch("video/*")
         }
 
-        btnAnalyzeLink.setOnClickListener {
-            val apiKey = requireApiKey() ?: return@setOnClickListener
-            val link = edtVideoLink.text.toString().trim()
-            if (link.isEmpty()) {
-                Toast.makeText(this, "Paste an unlisted or public YouTube link first.", Toast.LENGTH_SHORT).show()
+        findViewById<Button>(R.id.btnSendLinkToGemini).setOnClickListener {
+            val prompt = MobileGeminiBridge.buildPackagingPrompt(
+                creatorStyle = store.getCreatorStyle(),
+                angle = edtAngle.text.toString().trim(),
+                script = edtScript.text.toString().trim(),
+                videoLink = edtVideoLink.text.toString().trim()
+            )
+            MobileGeminiBridge.openInMobileGemini(this, prompt)
+        }
+
+        findViewById<Button>(R.id.btnSmartPasteGemini).setOnClickListener {
+            val pack = MobileGeminiBridge.parseClipboardResponse(this)
+            if (pack == null) {
+                Toast.makeText(this, "Copy Gemini's reply first, then tap Smart Paste.", Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
-            btnAnalyzeLink.isEnabled = false
-            btnAnalyzeLink.text = "Analyzing..."
-            GeminiEngine.analyzeYouTubeLink(
-                apiKey = apiKey,
-                creatorStyle = store.getCreatorStyle(),
-                youtubeUrl = link,
-                angleHint = edtAngle.text.toString().trim()
-            ) { result ->
-                runOnUiThread {
-                    btnAnalyzeLink.isEnabled = true
-                    btnAnalyzeLink.text = "Analyze Link"
-                    handleMetadataResult(result)
-                }
+            var filled = 0
+            if (pack.title.isNotBlank()) { edtTitle.setText(pack.title); filled++ }
+            if (pack.thumbText.isNotBlank()) { edtThumbText.setText(pack.thumbText); filled++ }
+            if (pack.description.isNotBlank()) { edtDescription.setText(pack.description); filled++ }
+            if (pack.tags.isNotBlank()) { edtTags.setText(pack.tags); filled++ }
+            if (filled == 0) {
+                edtScript.setText(pack.script)
+                Toast.makeText(this, "Pasted Gemini output into Script box!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Auto-filled $filled fields from Mobile Gemini!", Toast.LENGTH_SHORT).show()
             }
         }
 
-        btnGenThumbnail.setOnClickListener { runAiThumbnailGeneration() }
-        btnPickThumbGallery.setOnClickListener { pickThumbImageLauncher.launch("image/*") }
+        // Phase 2: YT Studio Gemini Thumbnail Handoff
+        findViewById<Button>(R.id.btnThumbYtStudio).setOnClickListener {
+            val prompt = MobileGeminiBridge.buildThumbnailPrompt(
+                creatorStyle = store.getCreatorStyle(),
+                title = edtTitle.text.toString().trim(),
+                thumbText = edtThumbText.text.toString().trim(),
+                angle = edtAngle.text.toString().trim(),
+                hasRefImage = false
+            )
+            MobileGeminiBridge.openYouTubeStudioForThumbnail(this, prompt)
+        }
+
+        // Phase 2: Mobile Gemini Thumbnail Handoff (with optional Reference Face/Mask Photo)
+        findViewById<Button>(R.id.btnThumbGemini).setOnClickListener {
+            val options = arrayOf(
+                "Generate in Mobile Gemini (Text Prompt Only)",
+                "Generate with Reference Face / Mask Photo"
+            )
+            AlertDialog.Builder(this)
+                .setTitle("16:9 Thumbnail in Mobile Gemini")
+                .setItems(options) { _, which ->
+                    if (which == 0) {
+                        val prompt = MobileGeminiBridge.buildThumbnailPrompt(
+                            creatorStyle = store.getCreatorStyle(),
+                            title = edtTitle.text.toString().trim(),
+                            thumbText = edtThumbText.text.toString().trim(),
+                            angle = edtAngle.text.toString().trim(),
+                            hasRefImage = false
+                        )
+                        MobileGeminiBridge.openInMobileGemini(this, prompt)
+                    } else {
+                        pickRefPhotoForThumbLauncher.launch("image/*")
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        findViewById<Button>(R.id.btnPickThumbGallery).setOnClickListener {
+            pickThumbImageLauncher.launch("image/*")
+        }
 
         findViewById<Button>(R.id.btnVoiceScript).setOnClickListener {
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -210,8 +245,16 @@ class ProjectDetailActivity : AppCompatActivity() {
             }
         }
 
-        btnAiHook.setOnClickListener { runAiHookTightener() }
-        btnAiPackage.setOnClickListener { runAiPackagingGenerator() }
+        findViewById<Button>(R.id.btnHookInGemini).setOnClickListener {
+            val angle = edtAngle.text.toString().trim()
+            val script = edtScript.text.toString().trim()
+            if (angle.isEmpty() && script.isEmpty()) {
+                Toast.makeText(this, "Add a Core Video Angle or Voice Script first.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val prompt = MobileGeminiBridge.buildHookPrompt(store.getCreatorStyle(), angle, script)
+            MobileGeminiBridge.openInMobileGemini(this, prompt)
+        }
 
         findViewById<Button>(R.id.btnSaveIdea).setOnClickListener { saveAndFinish(markPublished = false) }
         findViewById<Button>(R.id.btnPublishIdea).setOnClickListener { saveAndFinish(markPublished = true) }
@@ -252,164 +295,6 @@ class ProjectDetailActivity : AppCompatActivity() {
             imgThumbnailPreview.visibility = View.VISIBLE
         } else {
             imgThumbnailPreview.visibility = View.GONE
-        }
-    }
-
-    private fun handleMetadataResult(result: Result<FullVideoMetadata>) {
-        result.fold(
-            onSuccess = { meta ->
-                if (meta.title.isNotBlank()) edtTitle.setText(meta.title)
-                if (meta.thumbText.isNotBlank()) edtThumbText.setText(meta.thumbText)
-                if (meta.description.isNotBlank()) edtDescription.setText(meta.description)
-                if (meta.tags.isNotBlank()) edtTags.setText(meta.tags)
-                if (edtAngle.text.toString().isBlank() && meta.title.isNotBlank()) {
-                    edtAngle.setText(meta.title)
-                }
-                lastThumbnailPrompt = meta.thumbnailPrompt
-                Toast.makeText(this, "Title, Thumb Text, Description & Tags auto-filled!", Toast.LENGTH_LONG).show()
-            },
-            onFailure = { err ->
-                Toast.makeText(this, "AI Error: ${err.message}", Toast.LENGTH_LONG).show()
-            }
-        )
-    }
-
-    private fun runAiThumbnailGeneration() {
-        val apiKey = requireApiKey() ?: return
-        val title = edtTitle.text.toString().trim().ifEmpty { edtAngle.text.toString().trim() }
-        if (title.isEmpty() && lastThumbnailPrompt.isEmpty()) {
-            Toast.makeText(this, "Add a Title/Angle or analyze a video first.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        btnGenThumbnail.isEnabled = false
-        btnGenThumbnail.text = "Generating 16:9..."
-
-        GeminiEngine.generateThumbnailImage(
-            apiKey = apiKey,
-            creatorStyle = store.getCreatorStyle(),
-            title = title,
-            thumbText = edtThumbText.text.toString().trim(),
-            customVisualPrompt = lastThumbnailPrompt
-        ) { result ->
-            runOnUiThread {
-                btnGenThumbnail.isEnabled = true
-                btnGenThumbnail.text = "Generate AI Thumbnail"
-                result.fold(
-                    onSuccess = { bytes ->
-                        try {
-                            val outFile = getThumbnailFile()
-                            FileOutputStream(outFile).use { it.write(bytes) }
-                            currentIdea.thumbnailPath = outFile.absolutePath
-                            renderThumbnailPreview()
-                            Toast.makeText(this, "16:9 AI Thumbnail generated & saved!", Toast.LENGTH_SHORT).show()
-                        } catch (e: Exception) {
-                            Toast.makeText(this, "Save failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    onFailure = { err ->
-                        Toast.makeText(this, "Imagen Error: ${err.message}", Toast.LENGTH_LONG).show()
-                    }
-                )
-            }
-        }
-    }
-
-    private fun requireApiKey(): String? {
-        val key = store.getGeminiApiKey()
-        if (key.isBlank()) {
-            Toast.makeText(this, "Tap 'Connect AI' on the home screen to add your free Gemini API key first.", Toast.LENGTH_LONG).show()
-            return null
-        }
-        return key
-    }
-
-    private fun runAiHookTightener() {
-        val apiKey = requireApiKey() ?: return
-        val angle = edtAngle.text.toString().trim()
-        val script = edtScript.text.toString().trim()
-        if (angle.isEmpty() && script.isEmpty()) {
-            Toast.makeText(this, "Add a Core Video Angle or Voice Script first.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        btnAiHook.isEnabled = false
-        btnAiHook.text = "Thinking..."
-
-        GeminiEngine.generateTightHook(
-            apiKey = apiKey,
-            creatorStyle = store.getCreatorStyle(),
-            angle = angle.ifEmpty { script.take(100) },
-            rawScript = script
-        ) { result ->
-            runOnUiThread {
-                btnAiHook.isEnabled = true
-                btnAiHook.text = "Tighten 15s Hook (AI)"
-                result.fold(
-                    onSuccess = { tightened ->
-                        AlertDialog.Builder(this)
-                            .setTitle("Gemini 15s Hook & Beats")
-                            .setMessage(tightened)
-                            .setPositiveButton("Apply to Script") { _, _ ->
-                                edtScript.setText(tightened)
-                                edtScript.setSelection(tightened.length)
-                                Toast.makeText(this, "Applied directly to script!", Toast.LENGTH_SHORT).show()
-                            }
-                            .setNegativeButton("Discard", null)
-                            .show()
-                    },
-                    onFailure = { err ->
-                        Toast.makeText(this, "AI Error: ${err.message}", Toast.LENGTH_LONG).show()
-                    }
-                )
-            }
-        }
-    }
-
-    private fun runAiPackagingGenerator() {
-        val apiKey = requireApiKey() ?: return
-        val angle = edtAngle.text.toString().trim()
-        val script = edtScript.text.toString().trim()
-        if (angle.isEmpty() && script.isEmpty()) {
-            Toast.makeText(this, "Add a Core Video Angle or Script first.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        btnAiPackage.isEnabled = false
-        btnAiPackage.text = "Packaging..."
-
-        GeminiEngine.generatePackagingOptions(
-            apiKey = apiKey,
-            creatorStyle = store.getCreatorStyle(),
-            angle = angle.ifEmpty { script.take(100) },
-            script = script
-        ) { result ->
-            runOnUiThread {
-                btnAiPackage.isEnabled = true
-                btnAiPackage.text = "Auto-Package Title & Thumb (AI)"
-                result.fold(
-                    onSuccess = { options ->
-                        val labels = options.mapIndexed { idx, opt ->
-                            "${idx + 1}. ${opt.title}\nThumb: \"${opt.thumbText}\" — ${opt.visualCue}"
-                        }.toTypedArray()
-
-                        AlertDialog.Builder(this)
-                            .setTitle("Tap to Auto-Fill Title & Thumb")
-                            .setItems(labels) { _, which ->
-                                val picked = options[which]
-                                edtTitle.setText(picked.title)
-                                edtThumbText.setText(picked.thumbText)
-                                lastThumbnailPrompt = picked.visualCue
-                                Toast.makeText(this, "Packaging auto-filled!", Toast.LENGTH_SHORT).show()
-                            }
-                            .setNegativeButton("Cancel", null)
-                            .show()
-                    },
-                    onFailure = { err ->
-                        Toast.makeText(this, "AI Error: ${err.message}", Toast.LENGTH_LONG).show()
-                    }
-                )
-            }
         }
     }
 

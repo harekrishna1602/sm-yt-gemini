@@ -7,9 +7,6 @@ import java.net.URLEncoder
 
 object YouTubeDataClient {
 
-    /**
-     * Fetches official channel stats via YouTube Data API v3 using @handle or UC... Channel ID.
-     */
     fun fetchChannelStats(
         handleOrId: String,
         apiKey: String,

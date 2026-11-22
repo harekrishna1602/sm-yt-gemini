@@ -28,7 +28,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/btnAiSetup"
+                android:id="@+id/btnCreatorStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="34dp"
                 android:layout_marginEnd="8dp"
@@ -36,7 +36,7 @@
                 android:gravity="center"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
-                android:text="Connect AI"
+                android:text="Set Style"
                 android:textColor="#FF9F0A"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -55,7 +55,6 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Phase 4: Native YouTube Channel Stats Card -->
         <LinearLayout
             android:id="@+id/cardChannelStats"
             android:layout_width="match_parent"
@@ -85,7 +84,6 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- Shipped & Streak Row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -150,7 +148,6 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Phase 4: Watch vs Create Accountability Bar -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -175,7 +172,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
-                android:text="Creation ratio on track — keep shipping!"
+                android:text="Mobile Gemini + Studio Ready"
                 android:textColor="#34C759"
                 android:textSize="11sp" />
 
@@ -189,10 +186,10 @@
                     android:id="@+id/btnLogWatch15"
                     android:layout_width="0dp"
                     android:layout_height="36dp"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginEnd="6dp"
                     android:layout_weight="1"
                     android:backgroundTint="#1E293B"
-                    android:text="+15m Watched"
+                    android:text="+15m"
                     android:textAllCaps="false"
                     android:textColor="#E5E7EB"
                     android:textSize="11sp" />
@@ -201,9 +198,22 @@
                     android:id="@+id/btnBingeFlip"
                     android:layout_width="0dp"
                     android:layout_height="36dp"
-                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1.4"
                     android:backgroundTint="#FF3B30"
                     android:text="Binge-to-Build"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnImportGeminiIdea"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1.2"
+                    android:backgroundTint="#0A84FF"
+                    android:text="Paste Idea"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp"
@@ -234,7 +244,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Your Creator OS is Ready"
+                android:text="Mobile Gemini + Studio Ready"
                 android:textColor="#FFFFFF"
                 android:textSize="17sp"
                 android:textStyle="bold" />
@@ -244,7 +254,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:gravity="center"
-                android:text="Tap + New Idea or Binge-to-Build to start your next upload."
+                android:text="Zero API keys needed. Tap + New Idea to create scripts, metadata, and 16:9 thumbnails with Mobile Gemini &amp; YouTube Studio."
                 android:textColor="#8E96A4"
                 android:textSize="12sp" />
         </LinearLayout>

@@ -1,7 +1,6 @@
 package com.studiomogli.smytgemini
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -30,15 +29,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var txtShippedCount: TextView
     private lateinit var txtStreakCount: TextView
     private lateinit var txtDriveStatus: TextView
-    private lateinit var btnAiSetup: TextView
+    private lateinit var btnCreatorStyle: TextView
 
-    // Phase 4: Native Channel Stats & Accountability Views
     private lateinit var cardChannelStats: LinearLayout
     private lateinit var txtChannelName: TextView
     private lateinit var txtChannelNumbers: TextView
     private lateinit var txtWatchCreateRatio: TextView
     private lateinit var txtAccountabilityAlert: TextView
-    private lateinit var btnBingeFlip: Button
 
     private val exportDriveLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -83,14 +80,13 @@ class MainActivity : AppCompatActivity() {
         txtShippedCount = findViewById(R.id.txtShippedCount)
         txtStreakCount = findViewById(R.id.txtStreakCount)
         txtDriveStatus = findViewById(R.id.txtDriveStatus)
-        btnAiSetup = findViewById(R.id.btnAiSetup)
+        btnCreatorStyle = findViewById(R.id.btnCreatorStyle)
 
         cardChannelStats = findViewById(R.id.cardChannelStats)
         txtChannelName = findViewById(R.id.txtChannelName)
         txtChannelNumbers = findViewById(R.id.txtChannelNumbers)
         txtWatchCreateRatio = findViewById(R.id.txtWatchCreateRatio)
         txtAccountabilityAlert = findViewById(R.id.txtAccountabilityAlert)
-        btnBingeFlip = findViewById(R.id.btnBingeFlip)
 
         adapter = IdeaAdapter(emptyList()) { idea ->
             openProjectDetail(idea.id)
@@ -106,8 +102,8 @@ class MainActivity : AppCompatActivity() {
             showDriveVaultDialog()
         }
 
-        btnAiSetup.setOnClickListener {
-            showAiSetupDialog()
+        btnCreatorStyle.setOnClickListener {
+            showCreatorStyleDialog()
         }
 
         cardChannelStats.setOnClickListener {
@@ -120,8 +116,12 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Logged +15m watch time", Toast.LENGTH_SHORT).show()
         }
 
-        btnBingeFlip.setOnClickListener {
+        findViewById<Button>(R.id.btnBingeFlip).setOnClickListener {
             showBingeToBuildDialog()
+        }
+
+        findViewById<Button>(R.id.btnImportGeminiIdea).setOnClickListener {
+            importIdeaFromGeminiClipboard()
         }
     }
 
@@ -138,11 +138,10 @@ class MainActivity : AppCompatActivity() {
         txtShippedCount.text = shipped.toString()
         txtStreakCount.text = "${streak}d"
 
-        val hasKey = store.getGeminiApiKey().isNotBlank()
-        btnAiSetup.text = if (hasKey) "AI Ready" else "Connect AI"
-        btnAiSetup.setTextColor(if (hasKey) 0xFF34C759.toInt() else 0xFFFF9F0A.toInt())
+        val hasStyle = store.getCreatorStyle().isNotBlank()
+        btnCreatorStyle.text = if (hasStyle) "My Style ✓" else "Set Style"
+        btnCreatorStyle.setTextColor(if (hasStyle) 0xFF34C759.toInt() else 0xFFFF9F0A.toInt())
 
-        // Channel Stats Card
         val ch = store.getChannelStats()
         if (ch.title.isNotBlank()) {
             val nf = NumberFormat.getIntegerInstance(Locale.US)
@@ -153,23 +152,23 @@ class MainActivity : AppCompatActivity() {
             txtChannelNumbers.text = "Tap to sync live Subs & Views via YouTube Data API v3"
         }
 
-        // Watch vs Create Accountability
         val watchMins = store.getWatchMinsToday()
         val createMins = store.getCreateMinsToday()
         txtWatchCreateRatio.text = "Watched: ${watchMins}m   •   Created: ${createMins}m"
 
         if (watchMins > createMins && watchMins >= 15) {
-            txtAccountabilityAlert.text = "Reality Check: You watched ${watchMins}m today vs ${createMins}m creating. Flip it into a video!"
+            txtAccountabilityAlert.text = "Reality Check: Watched ${watchMins}m vs ${createMins}m creating. Tap Binge-to-Build!"
             txtAccountabilityAlert.setTextColor(0xFFFF453A.toInt())
         } else {
-            txtAccountabilityAlert.text = "Creation ratio on track — keep shipping!"
+            val geminiStatus = if (MobileGeminiBridge.isGeminiAppInstalled(this)) "Mobile Gemini + Studio Ready" else "Gemini Ready"
+            txtAccountabilityAlert.text = "$geminiStatus • Keep shipping!"
             txtAccountabilityAlert.setTextColor(0xFF34C759.toInt())
         }
 
         val lastSync = store.getLastDriveSync()
         txtDriveStatus.text = if (lastSync > 0L) {
             val fmt = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(lastSync))
-            "Private on device & Google Drive • Last backup: $fmt"
+            "Private on device & Drive • Last backup: $fmt"
         } else {
             "100% private on your device. Tap Drive Vault to back up to Google Drive."
         }
@@ -185,6 +184,71 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    private fun showBingeToBuildDialog() {
+        val input = EditText(this).apply {
+            hint = "What topic/videos were you just watching?"
+            setTextColor(0xFFFFFFFF.toInt())
+            setHintTextColor(0xFF888888.toInt())
+            setPadding(36, 28, 36, 28)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Binge-to-Build (Mobile Gemini)")
+            .setMessage("Sends your watch stats & topic straight to the Google Gemini app on your phone. Copy Gemini's reply, then tap 'Paste Idea' here.")
+            .setView(input)
+            .setPositiveButton("Open in Gemini") { _, _ ->
+                val topic = input.text.toString().trim().ifEmpty { "trending videos in my niche" }
+                val prompt = MobileGeminiBridge.buildBingeToBuildPrompt(
+                    creatorStyle = store.getCreatorStyle(),
+                    watchMins = store.getWatchMinsToday(),
+                    createMins = store.getCreateMinsToday(),
+                    topic = topic
+                )
+                MobileGeminiBridge.openInMobileGemini(this, prompt)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun importIdeaFromGeminiClipboard() {
+        val pack = MobileGeminiBridge.parseClipboardResponse(this)
+        if (pack == null) {
+            Toast.makeText(this, "Copy Gemini's reply first, then tap Paste Idea.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val idea = VideoIdea(
+            id = "idea_${System.currentTimeMillis()}",
+            angle = pack.angle.ifBlank { pack.title.ifBlank { pack.script.lines().firstOrNull()?.take(80) ?: "Gemini Idea" } },
+            title = pack.title,
+            thumbText = pack.thumbText,
+            description = pack.description,
+            tags = pack.tags,
+            script = if (pack.title.isBlank() && pack.angle.isBlank()) pack.script else "",
+            stage = VideoIdea.STAGE_IDEA
+        )
+        store.upsert(idea)
+        refreshUi()
+        Toast.makeText(this, "Imported from Mobile Gemini!", Toast.LENGTH_SHORT).show()
+        openProjectDetail(idea.id)
+    }
+
+    private fun showCreatorStyleDialog() {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_creator_style, null)
+        val dialog = AlertDialog.Builder(this).setView(view).create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val edtStyle = view.findViewById<EditText>(R.id.edtCreatorStyle)
+        edtStyle.setText(store.getCreatorStyle())
+
+        view.findViewById<Button>(R.id.btnSaveStyle).setOnClickListener {
+            store.saveCreatorStyle(edtStyle.text.toString())
+            refreshUi()
+            dialog.dismiss()
+            Toast.makeText(this, "Creator Style saved — included in all Mobile Gemini prompts!", Toast.LENGTH_SHORT).show()
+        }
+        view.findViewById<TextView>(R.id.btnCancelStyle).setOnClickListener { dialog.dismiss() }
+        dialog.show()
+    }
+
     private fun showChannelConnectDialog() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_channel_connect, null)
         val dialog = AlertDialog.Builder(this).setView(view).create()
@@ -195,7 +259,7 @@ class MainActivity : AppCompatActivity() {
         val btnSync = view.findViewById<Button>(R.id.btnSyncChannel)
 
         edtHandle.setText(store.getYtHandle())
-        edtYtKey.setText(store.getYtDataApiKey().ifBlank { store.getGeminiApiKey() })
+        edtYtKey.setText(store.getYtDataApiKey())
 
         btnSync.setOnClickListener {
             val handle = edtHandle.text.toString().trim()
@@ -228,95 +292,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         view.findViewById<TextView>(R.id.btnCancelChannel).setOnClickListener { dialog.dismiss() }
-        dialog.show()
-    }
-
-    private fun showBingeToBuildDialog() {
-        val apiKey = store.getGeminiApiKey()
-        if (apiKey.isBlank()) {
-            Toast.makeText(this, "Tap 'Connect AI' first to add your Gemini API key.", Toast.LENGTH_LONG).show()
-            return
-        }
-        val input = EditText(this).apply {
-            hint = "What topic/videos were you just watching?"
-            setTextColor(0xFFFFFFFF.toInt())
-            setHintTextColor(0xFF888888.toInt())
-            setPadding(36, 28, 36, 28)
-        }
-        AlertDialog.Builder(this)
-            .setTitle("Binge-to-Build Flip (AI)")
-            .setMessage("Turn what you were watching into your next video idea right now.")
-            .setView(input)
-            .setPositiveButton("Flip into Idea") { _, _ ->
-                val topic = input.text.toString().trim().ifEmpty { "trending videos in my niche" }
-                btnBingeFlip.isEnabled = false
-                btnBingeFlip.text = "Flipping..."
-                GeminiEngine.generateBingeToBuildFlip(
-                    apiKey = apiKey,
-                    creatorStyle = store.getCreatorStyle(),
-                    watchMins = store.getWatchMinsToday(),
-                    createMins = store.getCreateMinsToday(),
-                    bingeTopic = topic
-                ) { result ->
-                    runOnUiThread {
-                        btnBingeFlip.isEnabled = true
-                        btnBingeFlip.text = "Binge-to-Build"
-                        result.fold(
-                            onSuccess = { flip ->
-                                val newIdea = VideoIdea(
-                                    id = "idea_${System.currentTimeMillis()}",
-                                    angle = flip.angle,
-                                    title = flip.title,
-                                    thumbText = flip.thumbText,
-                                    stage = VideoIdea.STAGE_IDEA
-                                )
-                                store.upsert(newIdea)
-                                refreshUi()
-                                AlertDialog.Builder(this)
-                                    .setTitle("Reality Check")
-                                    .setMessage("${flip.realityCheck}\n\nAdded to Workbench:\n\"${flip.title}\"")
-                                    .setPositiveButton("Open Idea") { _, _ -> openProjectDetail(newIdea.id) }
-                                    .setNegativeButton("Later", null)
-                                    .show()
-                            },
-                            onFailure = { err ->
-                                Toast.makeText(this, "AI Error: ${err.message}", Toast.LENGTH_LONG).show()
-                            }
-                        )
-                    }
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun showAiSetupDialog() {
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_ai_setup, null)
-        val dialog = AlertDialog.Builder(this).setView(view).create()
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        val edtKey = view.findViewById<EditText>(R.id.edtApiKey)
-        val edtStyle = view.findViewById<EditText>(R.id.edtCreatorStyle)
-        edtKey.setText(store.getGeminiApiKey())
-        edtStyle.setText(store.getCreatorStyle())
-
-        view.findViewById<TextView>(R.id.btnGetFreeKey).setOnClickListener {
-            try {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey")))
-            } catch (_: Exception) {
-                Toast.makeText(this, "Visit aistudio.google.com/apikey", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        view.findViewById<Button>(R.id.btnSaveAiSetup).setOnClickListener {
-            store.saveGeminiApiKey(edtKey.text.toString())
-            store.saveCreatorStyle(edtStyle.text.toString())
-            refreshUi()
-            dialog.dismiss()
-            Toast.makeText(this, "Gemini AI engine saved!", Toast.LENGTH_SHORT).show()
-        }
-
-        view.findViewById<TextView>(R.id.btnCancelAiSetup).setOnClickListener { dialog.dismiss() }
         dialog.show()
     }
 

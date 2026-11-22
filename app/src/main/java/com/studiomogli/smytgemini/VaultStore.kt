@@ -94,10 +94,8 @@ class VaultStore(context: Context) {
         private const val PREFS_NAME = "sm_yt_gemini_vault_v1"
         private const val KEY_IDEAS = "ideas_json"
         private const val KEY_DRIVE_LAST_SYNC = "drive_last_sync"
-        private const val KEY_GEMINI_API_KEY = "gemini_api_key"
         private const val KEY_CREATOR_STYLE = "creator_style_notes"
 
-        // Phase 4: Channel & Accountability
         private const val KEY_YT_HANDLE = "yt_channel_handle"
         private const val KEY_YT_DATA_API_KEY = "yt_data_api_key"
         private const val KEY_CHANNEL_STATS = "yt_channel_stats_json"
@@ -162,17 +160,11 @@ class VaultStore(context: Context) {
         saveAll(list)
     }
 
-    fun getGeminiApiKey(): String = prefs.getString(KEY_GEMINI_API_KEY, "") ?: ""
-    fun saveGeminiApiKey(key: String) {
-        prefs.edit().putString(KEY_GEMINI_API_KEY, key.trim()).apply()
-    }
-
     fun getCreatorStyle(): String = prefs.getString(KEY_CREATOR_STYLE, "") ?: ""
     fun saveCreatorStyle(style: String) {
         prefs.edit().putString(KEY_CREATOR_STYLE, style.trim()).apply()
     }
 
-    // Phase 4: YouTube Channel Settings & Cached Stats
     fun getYtHandle(): String = prefs.getString(KEY_YT_HANDLE, "") ?: ""
     fun getYtDataApiKey(): String = prefs.getString(KEY_YT_DATA_API_KEY, "") ?: ""
 
@@ -196,7 +188,6 @@ class VaultStore(context: Context) {
         prefs.edit().putString(KEY_CHANNEL_STATS, stats.toJson().toString()).apply()
     }
 
-    // Phase 4: Accountability & Streak
     fun getWatchMinsToday(): Int {
         ensureDateCurrent()
         return prefs.getInt(KEY_WATCH_MINS, 0)
@@ -236,7 +227,7 @@ class VaultStore(context: Context) {
     fun exportVaultJson(): String {
         val root = JSONObject()
         root.put("app", "sm-yt-gemini")
-        root.put("schemaVersion", 4)
+        root.put("schemaVersion", 6)
         root.put("exportedAt", System.currentTimeMillis())
         root.put("creatorStyle", getCreatorStyle())
         root.put("ytHandle", getYtHandle())

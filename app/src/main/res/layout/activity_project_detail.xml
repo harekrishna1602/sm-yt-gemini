@@ -53,10 +53,11 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <!-- Phase 1: Mobile Gemini Content Creation -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="VIDEO SOURCE (AUTO-METADATA)"
+                android:text="MOBILE GEMINI BRIDGE (ZERO API KEY)"
                 android:textColor="#8E96A4"
                 android:textSize="11sp"
                 android:textStyle="bold" />
@@ -81,36 +82,49 @@
                 android:orientation="horizontal">
 
                 <Button
-                    android:id="@+id/btnPickLocalVideo"
+                    android:id="@+id/btnSendVideoToGemini"
                     android:layout_width="0dp"
                     android:layout_height="40dp"
                     android:layout_marginEnd="8dp"
                     android:layout_weight="1"
                     android:backgroundTint="#1E293B"
-                    android:text="Pick Device Video"
+                    android:text="Video → Gemini"
                     android:textAllCaps="false"
                     android:textColor="#38BDF8"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
                 <Button
-                    android:id="@+id/btnAnalyzeLink"
+                    android:id="@+id/btnSendLinkToGemini"
                     android:layout_width="0dp"
                     android:layout_height="40dp"
                     android:layout_weight="1"
                     android:backgroundTint="#0A84FF"
-                    android:text="Analyze Link"
+                    android:text="Package in Gemini"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
                     android:textSize="12sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
+            <Button
+                android:id="@+id/btnSmartPasteGemini"
+                android:layout_width="match_parent"
+                android:layout_height="42dp"
+                android:layout_marginTop="8dp"
+                android:backgroundTint="#34C759"
+                android:text="Smart Paste from Mobile Gemini"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <!-- Phase 2: Thumbnail Integration (YT Studio Gemini + Mobile Gemini) -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="THUMBNAIL STUDIO (16:9)"
+                android:text="THUMBNAIL STUDIO (YT STUDIO + GEMINI)"
                 android:textColor="#8E96A4"
                 android:textSize="11sp"
                 android:textStyle="bold" />
@@ -132,28 +146,41 @@
                 android:orientation="horizontal">
 
                 <Button
-                    android:id="@+id/btnGenThumbnail"
+                    android:id="@+id/btnThumbYtStudio"
                     android:layout_width="0dp"
                     android:layout_height="40dp"
                     android:layout_marginEnd="8dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#7C3AED"
-                    android:text="Generate AI Thumbnail"
+                    android:backgroundTint="#FF3B30"
+                    android:text="YT Studio Thumb"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
                 <Button
-                    android:id="@+id/btnPickThumbGallery"
-                    android:layout_width="wrap_content"
+                    android:id="@+id/btnThumbGemini"
+                    android:layout_width="0dp"
                     android:layout_height="40dp"
-                    android:backgroundTint="#1E293B"
-                    android:text="Gallery"
+                    android:layout_weight="1"
+                    android:backgroundTint="#7C3AED"
+                    android:text="Gemini Thumb"
                     android:textAllCaps="false"
-                    android:textColor="#E5E7EB"
-                    android:textSize="12sp" />
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
             </LinearLayout>
+
+            <Button
+                android:id="@+id/btnPickThumbGallery"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="8dp"
+                android:backgroundTint="#1E293B"
+                android:text="Attach Saved Thumbnail from Gallery"
+                android:textAllCaps="false"
+                android:textColor="#E5E7EB"
+                android:textSize="12sp" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -218,12 +245,12 @@
                 android:textSize="14sp" />
 
             <Button
-                android:id="@+id/btnAiHook"
+                android:id="@+id/btnHookInGemini"
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
                 android:layout_marginTop="10dp"
                 android:backgroundTint="#0A84FF"
-                android:text="Tighten 15s Hook (AI)"
+                android:text="Tighten 15s Hook in Mobile Gemini"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textSize="13sp"
@@ -238,23 +265,11 @@
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
-            <Button
-                android:id="@+id/btnAiPackage"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="8dp"
-                android:backgroundTint="#1E293B"
-                android:text="Auto-Package Title &amp; Thumb (AI)"
-                android:textAllCaps="false"
-                android:textColor="#38BDF8"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
             <EditText
                 android:id="@+id/edtTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="10dp"
                 android:background="@drawable/bg_input_field"
                 android:hint="Final YouTube Title (&lt;55 chars)"
                 android:padding="14dp"
@@ -295,7 +310,7 @@
                 android:layout_marginTop="12dp"
                 android:background="@drawable/bg_input_field"
                 android:gravity="top|start"
-                android:hint="YouTube Description (auto-filled by AI)"
+                android:hint="YouTube Description (auto-filled via Smart Paste)"
                 android:padding="14dp"
                 android:textColor="#FFFFFF"
                 android:textColorHint="#5C6470"
