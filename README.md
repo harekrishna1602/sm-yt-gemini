@@ -1,8 +1,11 @@
-# sm-yt-gemini (v0.6.0 — Thumbnail Integration)
+# sm-yt-gemini (v0.8.0 — 1-Click Export to YouTube Studio)
 
 Official native Android Creator OS by **Studio Mogli**.
 
-## Phase 2: Thumbnail Integration (YT Studio + Mobile Gemini)
-- **YT Studio Thumb:** Copies your structured 16:9 thumbnail prompt and launches the official **YouTube Studio Android app** (`com.google.android.apps.youtube.creator`) directly so you can generate or upload thumbnails with YT Studio's built-in Gemini.
-- **Gemini Thumb (with Reference Photo):** Generates a 16:9 thumbnail in your **Mobile Gemini app**—with an option to attach your reference Face / Mask / Brand photo in one tap.
-- **Instant Gallery Attach:** Attach the saved thumbnail right onto your Idea card so it shows across your Workbench.
+## Phase 2 Update (v0.8.0): 1-Click Export to YouTube Studio
+- **1-Click Export Button:** Tap **1-Click Export to YouTube Studio** at the top of any Idea screen.
+- **Zero-Friction Publish Pack (`PublishPackReceiver.kt`):**
+  1. Saves your branded 1280x720 thumbnail to `Pictures/YTGemini` (top of Gallery).
+  2. Copies your **Title** straight to the clipboard for instant pasting.
+  3. Pins a **Publish Pack** notification with 1-tap **Copy Title**, **Copy Desc**, and **Copy Tags** buttons right in your notification shade.
+  4. Launches the official **YouTube Studio** app directly.

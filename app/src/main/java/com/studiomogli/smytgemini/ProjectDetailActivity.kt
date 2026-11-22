@@ -1,8 +1,14 @@
 package com.studiomogli.smytgemini
 
+import android.Manifest
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,6 +24,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
@@ -50,6 +57,12 @@ class ProjectDetailActivity : AppCompatActivity() {
         }
     }
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        executeExportToStudio()
+    }
+
     private val voiceLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -79,7 +92,6 @@ class ProjectDetailActivity : AppCompatActivity() {
         }
     }
 
-    // Phase 2: Pick a reference Face / Mask / Brand photo and send it + 16:9 thumbnail prompt to Mobile Gemini
     private val pickRefPhotoForThumbLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
@@ -100,13 +112,40 @@ class ProjectDetailActivity : AppCompatActivity() {
     ) { uri ->
         if (uri != null) {
             try {
-                val outFile = getThumbnailFile()
+                val rawFile = getRawThumbnailFile()
                 contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(outFile).use { output -> input.copyTo(output) }
+                    FileOutputStream(rawFile).use { output -> input.copyTo(output) }
                 }
-                currentIdea.thumbnailPath = outFile.absolutePath
+
+                val finalFile = getThumbnailFile()
+                if (store.hasBrandLogo()) {
+                    val stamped = ThumbnailBrander.stampLogoOverWatermark(
+                        sourceThumbFile = rawFile,
+                        brandLogoFile = store.getBrandLogoFile(),
+                        outputFile = finalFile
+                    )
+                    if (stamped) {
+                        currentIdea.thumbnailPath = finalFile.absolutePath
+                        renderThumbnailPreview()
+                        val savedPublic = ThumbnailBrander.saveToPublicGallery(
+                            this,
+                            finalFile,
+                            edtTitle.text.toString().ifBlank { currentIdea.id }
+                        )
+                        val msg = if (savedPublic) {
+                            "Logo stamped over watermark & saved to Pictures/YTGemini!"
+                        } else {
+                            "Logo stamped over watermark!"
+                        }
+                        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                        return@registerForActivityResult
+                    }
+                }
+
+                rawFile.copyTo(finalFile, overwrite = true)
+                currentIdea.thumbnailPath = finalFile.absolutePath
                 renderThumbnailPreview()
-                Toast.makeText(this, "Thumbnail attached to Idea card!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Thumbnail attached! (Set your logo in Brand & Logo to auto-cover watermark)", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 Toast.makeText(this, "Could not attach image", Toast.LENGTH_SHORT).show()
             }
@@ -158,6 +197,17 @@ class ProjectDetailActivity : AppCompatActivity() {
             saveAndFinish(markPublished = false)
         }
 
+        // Phase 2 (v0.8.0): 1-Click Export to YouTube Studio!
+        findViewById<Button>(R.id.btnExportToStudio).setOnClickListener {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                executeExportToStudio()
+            }
+        }
+
         findViewById<Button>(R.id.btnSendVideoToGemini).setOnClickListener {
             pickVideoForGeminiLauncher.launch("video/*")
         }
@@ -191,7 +241,6 @@ class ProjectDetailActivity : AppCompatActivity() {
             }
         }
 
-        // Phase 2: YT Studio Gemini Thumbnail Handoff
         findViewById<Button>(R.id.btnThumbYtStudio).setOnClickListener {
             val prompt = MobileGeminiBridge.buildThumbnailPrompt(
                 creatorStyle = store.getCreatorStyle(),
@@ -203,7 +252,6 @@ class ProjectDetailActivity : AppCompatActivity() {
             MobileGeminiBridge.openYouTubeStudioForThumbnail(this, prompt)
         }
 
-        // Phase 2: Mobile Gemini Thumbnail Handoff (with optional Reference Face/Mask Photo)
         findViewById<Button>(R.id.btnThumbGemini).setOnClickListener {
             val options = arrayOf(
                 "Generate in Mobile Gemini (Text Prompt Only)",
@@ -231,6 +279,36 @@ class ProjectDetailActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnPickThumbGallery).setOnClickListener {
             pickThumbImageLauncher.launch("image/*")
+        }
+
+        findViewById<Button>(R.id.btnStampLogoNow).setOnClickListener {
+            if (!store.hasBrandLogo()) {
+                Toast.makeText(this, "Upload your Channel Logo first via 'Brand & Logo' on Home.", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            val src = if (getRawThumbnailFile().exists()) getRawThumbnailFile() else File(currentIdea.thumbnailPath)
+            if (!src.exists()) {
+                Toast.makeText(this, "Attach a Gemini thumbnail first.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val outFile = getThumbnailFile()
+            val ok = ThumbnailBrander.stampLogoOverWatermark(src, store.getBrandLogoFile(), outFile)
+            if (ok) {
+                currentIdea.thumbnailPath = outFile.absolutePath
+                renderThumbnailPreview()
+                val saved = ThumbnailBrander.saveToPublicGallery(
+                    this,
+                    outFile,
+                    edtTitle.text.toString().ifBlank { currentIdea.id }
+                )
+                Toast.makeText(
+                    this,
+                    if (saved) "Branded 1280x720 saved to Pictures/YTGemini!" else "Logo stamped!",
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                Toast.makeText(this, "Could not merge logo.", Toast.LENGTH_SHORT).show()
+            }
         }
 
         findViewById<Button>(R.id.btnVoiceScript).setOnClickListener {
@@ -271,6 +349,37 @@ class ProjectDetailActivity : AppCompatActivity() {
         }
     }
 
+    private fun executeExportToStudio() {
+        persistFields(markPublished = false)
+
+        val title = edtTitle.text.toString().trim()
+        val desc = edtDescription.text.toString().trim()
+        val tags = edtTags.text.toString().trim()
+
+        // 1. Ensure branded thumbnail is freshly saved to Pictures/YTGemini (top of Gallery)
+        val thumbFile = File(currentIdea.thumbnailPath)
+        if (thumbFile.exists()) {
+            ThumbnailBrander.saveToPublicGallery(this, thumbFile, title.ifBlank { currentIdea.id })
+        }
+
+        // 2. Copy Title immediately to clipboard so first paste is instant
+        if (title.isNotBlank()) {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("YouTube Title", title))
+        }
+
+        // 3. Pin the 1-tap Publish Pack notification (Copy Title / Copy Desc / Copy Tags)
+        PublishPackReceiver.showPublishPackNotification(this, title, desc, tags)
+
+        // 4. Launch official YouTube Studio app directly
+        Toast.makeText(
+            this,
+            "Title copied + Publish Pack pinned in notifications! Opening YT Studio...",
+            Toast.LENGTH_LONG
+        ).show()
+        MobileGeminiBridge.openYouTubeStudioApp(this)
+    }
+
     override fun onResume() {
         super.onResume()
         createTimerHandler.removeCallbacks(createTimerRunnable)
@@ -280,6 +389,12 @@ class ProjectDetailActivity : AppCompatActivity() {
     override fun onPause() {
         createTimerHandler.removeCallbacks(createTimerRunnable)
         super.onPause()
+    }
+
+    private fun getRawThumbnailFile(): File {
+        val dir = File(filesDir, "thumbnails")
+        if (!dir.exists()) dir.mkdirs()
+        return File(dir, "raw_${currentIdea.id}.jpg")
     }
 
     private fun getThumbnailFile(): File {
@@ -331,7 +446,7 @@ class ProjectDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveAndFinish(markPublished: Boolean) {
+    private fun persistFields(markPublished: Boolean): Boolean {
         val angle = edtAngle.text.toString().trim()
         val script = edtScript.text.toString().trim()
         val title = edtTitle.text.toString().trim()
@@ -341,8 +456,7 @@ class ProjectDetailActivity : AppCompatActivity() {
         val tags = edtTags.text.toString().trim()
 
         if (angle.isEmpty() && script.isEmpty() && title.isEmpty() && link.isEmpty()) {
-            finish()
-            return
+            return false
         }
 
         currentIdea.angle = angle.ifEmpty { title.ifEmpty { "Untitled Idea" } }
@@ -362,11 +476,17 @@ class ProjectDetailActivity : AppCompatActivity() {
         }
 
         store.upsert(currentIdea)
-        Toast.makeText(
-            this,
-            if (markPublished) "Marked as Published!" else "Saved to Workbench",
-            Toast.LENGTH_SHORT
-        ).show()
+        return true
+    }
+
+    private fun saveAndFinish(markPublished: Boolean) {
+        if (persistFields(markPublished)) {
+            Toast.makeText(
+                this,
+                if (markPublished) "Marked as Published!" else "Saved to Workbench",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
         finish()
     }
 }

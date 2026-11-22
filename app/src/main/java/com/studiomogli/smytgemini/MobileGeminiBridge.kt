@@ -32,15 +32,6 @@ object MobileGeminiBridge {
         }
     }
 
-    fun isYtStudioInstalled(context: Context): Boolean {
-        return try {
-            context.packageManager.getPackageInfo(YT_STUDIO_PACKAGE, 0)
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
-
     fun openInMobileGemini(context: Context, prompt: String, mediaUri: Uri? = null, mimeType: String = "video/*") {
         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("YT Gemini Prompt", prompt))
@@ -90,29 +81,27 @@ object MobileGeminiBridge {
         }
     }
 
-    /**
-     * Copies the thumbnail prompt to clipboard and opens the official YouTube Studio mobile app
-     * (so the creator can use YT Studio's built-in Gemini thumbnail generator or upload directly).
-     */
-    fun openYouTubeStudioForThumbnail(context: Context, prompt: String) {
-        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cm.setPrimaryClip(ClipData.newPlainText("YT Studio Thumbnail Prompt", prompt))
-
+    fun openYouTubeStudioApp(context: Context) {
         try {
             val launch = context.packageManager.getLaunchIntentForPackage(YT_STUDIO_PACKAGE)
             if (launch != null) {
                 launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(launch)
-                Toast.makeText(context, "Thumbnail prompt copied! Opening YouTube Studio...", Toast.LENGTH_LONG).show()
             } else {
                 val web = Intent(Intent.ACTION_VIEW, Uri.parse(YT_STUDIO_WEB_FALLBACK))
                 web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(web)
-                Toast.makeText(context, "Thumbnail prompt copied! Opening Studio web...", Toast.LENGTH_LONG).show()
             }
         } catch (_: Exception) {
-            Toast.makeText(context, "Thumbnail prompt copied to clipboard!", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Open YouTube Studio to paste your Publish Pack.", Toast.LENGTH_LONG).show()
         }
+    }
+
+    fun openYouTubeStudioForThumbnail(context: Context, prompt: String) {
+        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("YT Studio Thumbnail Prompt", prompt))
+        openYouTubeStudioApp(context)
+        Toast.makeText(context, "Thumbnail prompt copied! Opening YouTube Studio...", Toast.LENGTH_LONG).show()
     }
 
     fun buildThumbnailPrompt(

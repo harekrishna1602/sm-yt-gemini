@@ -1,11 +1,13 @@
 package com.studiomogli.smytgemini
 
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -15,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+import java.io.FileOutputStream
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -36,6 +39,29 @@ class MainActivity : AppCompatActivity() {
     private lateinit var txtChannelNumbers: TextView
     private lateinit var txtWatchCreateRatio: TextView
     private lateinit var txtAccountabilityAlert: TextView
+
+    private var activeLogoPreviewInDialog: ImageView? = null
+
+    private val pickBrandLogoLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val outFile = store.getBrandLogoFile()
+                contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(outFile).use { output -> input.copyTo(output) }
+                }
+                activeLogoPreviewInDialog?.let { img ->
+                    img.setImageBitmap(BitmapFactory.decodeFile(outFile.absolutePath))
+                    img.visibility = View.VISIBLE
+                }
+                refreshUi()
+                Toast.makeText(this, "Channel Logo saved! Will auto-cover Gemini watermark.", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(this, "Could not save logo", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     private val exportDriveLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -138,9 +164,10 @@ class MainActivity : AppCompatActivity() {
         txtShippedCount.text = shipped.toString()
         txtStreakCount.text = "${streak}d"
 
+        val hasLogo = store.hasBrandLogo()
         val hasStyle = store.getCreatorStyle().isNotBlank()
-        btnCreatorStyle.text = if (hasStyle) "My Style ✓" else "Set Style"
-        btnCreatorStyle.setTextColor(if (hasStyle) 0xFF34C759.toInt() else 0xFFFF9F0A.toInt())
+        btnCreatorStyle.text = if (hasLogo && hasStyle) "Brand ✓" else "Brand & Logo"
+        btnCreatorStyle.setTextColor(if (hasLogo) 0xFF34C759.toInt() else 0xFFFF9F0A.toInt())
 
         val ch = store.getChannelStats()
         if (ch.title.isNotBlank()) {
@@ -160,8 +187,8 @@ class MainActivity : AppCompatActivity() {
             txtAccountabilityAlert.text = "Reality Check: Watched ${watchMins}m vs ${createMins}m creating. Tap Binge-to-Build!"
             txtAccountabilityAlert.setTextColor(0xFFFF453A.toInt())
         } else {
-            val geminiStatus = if (MobileGeminiBridge.isGeminiAppInstalled(this)) "Mobile Gemini + Studio Ready" else "Gemini Ready"
-            txtAccountabilityAlert.text = "$geminiStatus • Keep shipping!"
+            val logoNote = if (hasLogo) "Auto-Logo Ready" else "Add Logo in Brand"
+            txtAccountabilityAlert.text = "$logoNote • 1-Click Publish Ready"
             txtAccountabilityAlert.setTextColor(0xFF34C759.toInt())
         }
 
@@ -237,15 +264,29 @@ class MainActivity : AppCompatActivity() {
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         val edtStyle = view.findViewById<EditText>(R.id.edtCreatorStyle)
+        val imgLogoPreview = view.findViewById<ImageView>(R.id.imgBrandLogoPreview)
+        val btnPickLogo = view.findViewById<Button>(R.id.btnPickBrandLogo)
+
+        activeLogoPreviewInDialog = imgLogoPreview
         edtStyle.setText(store.getCreatorStyle())
+
+        if (store.hasBrandLogo()) {
+            imgLogoPreview.setImageBitmap(BitmapFactory.decodeFile(store.getBrandLogoFile().absolutePath))
+            imgLogoPreview.visibility = View.VISIBLE
+        }
+
+        btnPickLogo.setOnClickListener {
+            pickBrandLogoLauncher.launch("image/*")
+        }
 
         view.findViewById<Button>(R.id.btnSaveStyle).setOnClickListener {
             store.saveCreatorStyle(edtStyle.text.toString())
             refreshUi()
             dialog.dismiss()
-            Toast.makeText(this, "Creator Style saved — included in all Mobile Gemini prompts!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Brand & Style saved!", Toast.LENGTH_SHORT).show()
         }
         view.findViewById<TextView>(R.id.btnCancelStyle).setOnClickListener { dialog.dismiss() }
+        dialog.setOnDismissListener { activeLogoPreviewInDialog = null }
         dialog.show()
     }
 

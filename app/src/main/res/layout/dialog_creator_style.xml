@@ -9,7 +9,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Your Creator Setup &amp; Style"
+        android:text="Brand Logo &amp; Creator Style"
         android:textColor="#FFFFFF"
         android:textSize="18sp"
         android:textStyle="bold" />
@@ -18,18 +18,49 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:text="Automatically injected into every prompt sent to your Google Gemini mobile app &amp; YouTube Studio."
+        android:text="Upload your channel logo once. It will automatically stamp over the bottom-right Gemini watermark on every thumbnail—zero Photoshop needed."
         android:textColor="#8E96A4"
         android:textSize="12sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/imgBrandLogoPreview"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_input_field"
+            android:contentDescription="Brand Logo"
+            android:padding="4dp"
+            android:scaleType="fitCenter"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnPickBrandLogo"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:backgroundTint="#1E293B"
+            android:text="Upload Channel Logo (PNG/JPG)"
+            android:textAllCaps="false"
+            android:textColor="#38BDF8"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <EditText
         android:id="@+id/edtCreatorStyle"
         android:layout_width="match_parent"
-        android:layout_height="100dp"
+        android:layout_height="96dp"
         android:layout_marginTop="12dp"
         android:background="@drawable/bg_input_field"
         android:gravity="top|start"
-        android:hint="e.g. Faceless PC gaming, black &amp; orange ninja mask, Hinglish tone, witty hooks"
+        android:hint="Creator Style (e.g. Faceless PC gaming, Hinglish tone, witty hooks)"
         android:padding="12dp"
         android:textColor="#FFFFFF"
         android:textColorHint="#5C6470"
@@ -41,7 +72,7 @@
         android:layout_height="46dp"
         android:layout_marginTop="16dp"
         android:backgroundTint="#FF3B30"
-        android:text="Save Creator Style"
+        android:text="Save Brand &amp; Style"
         android:textAllCaps="false"
         android:textColor="#FFFFFF"
         android:textStyle="bold" />

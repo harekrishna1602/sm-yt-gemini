@@ -3,6 +3,7 @@ package com.studiomogli.smytgemini
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -88,7 +89,7 @@ data class ChannelStats(
     }
 }
 
-class VaultStore(context: Context) {
+class VaultStore(private val appContext: Context) {
 
     companion object {
         private const val PREFS_NAME = "sm_yt_gemini_vault_v1"
@@ -106,7 +107,7 @@ class VaultStore(context: Context) {
         private const val KEY_LAST_ACTIVE_DATE = "creator_last_active_date"
     }
 
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private fun todayKey(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
@@ -120,6 +121,9 @@ class VaultStore(context: Context) {
                 .apply()
         }
     }
+
+    fun getBrandLogoFile(): File = File(appContext.filesDir, "channel_brand_logo.png")
+    fun hasBrandLogo(): Boolean = getBrandLogoFile().exists()
 
     fun getAllIdeas(): MutableList<VideoIdea> {
         val raw = prefs.getString(KEY_IDEAS, null) ?: return mutableListOf()
@@ -227,7 +231,7 @@ class VaultStore(context: Context) {
     fun exportVaultJson(): String {
         val root = JSONObject()
         root.put("app", "sm-yt-gemini")
-        root.put("schemaVersion", 6)
+        root.put("schemaVersion", 8)
         root.put("exportedAt", System.currentTimeMillis())
         root.put("creatorStyle", getCreatorStyle())
         root.put("ytHandle", getYtHandle())
