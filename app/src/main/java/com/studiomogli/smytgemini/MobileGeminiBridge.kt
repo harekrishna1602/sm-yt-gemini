@@ -104,6 +104,14 @@ object MobileGeminiBridge {
         Toast.makeText(context, "Thumbnail prompt copied! Opening YouTube Studio...", Toast.LENGTH_LONG).show()
     }
 
+    fun buildGeminiVoiceScriptPrompt(creatorStyle: String, angle: String): String = buildString {
+        append("I am going to dictate my raw YouTube script to you using your mic button. ")
+        append("Clean up filler words while keeping my exact natural tone (Hinglish/English) and format it into a teleprompter-ready script (0-15s Hook + Short Punchy Lines).\n")
+        if (creatorStyle.isNotBlank()) append("MY STYLE: ").append(creatorStyle).append("\n")
+        if (angle.isNotBlank()) append("VIDEO ANGLE: ").append(angle).append("\n")
+        append("\nMY VOICE DICTATION:\n")
+    }
+
     fun buildThumbnailPrompt(
         creatorStyle: String,
         title: String,

@@ -1,7 +1,6 @@
 package com.studiomogli.smytgemini
 
 import android.Manifest
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -12,7 +11,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.speech.RecognizerIntent
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
@@ -61,21 +59,6 @@ class ProjectDetailActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) {
         executeExportToStudio()
-    }
-
-    private val voiceLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            val spoken = matches?.firstOrNull()?.trim() ?: ""
-            if (spoken.isNotEmpty()) {
-                val existing = edtScript.text.toString().trim()
-                val updated = if (existing.isEmpty()) spoken else "$existing\n$spoken"
-                edtScript.setText(updated)
-                edtScript.setSelection(updated.length)
-            }
-        }
     }
 
     private val pickVideoForGeminiLauncher = registerForActivityResult(
@@ -197,7 +180,6 @@ class ProjectDetailActivity : AppCompatActivity() {
             saveAndFinish(markPublished = false)
         }
 
-        // Phase 2 (v0.8.0): 1-Click Export to YouTube Studio!
         findViewById<Button>(R.id.btnExportToStudio).setOnClickListener {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -235,7 +217,7 @@ class ProjectDetailActivity : AppCompatActivity() {
             if (pack.tags.isNotBlank()) { edtTags.setText(pack.tags); filled++ }
             if (filled == 0) {
                 edtScript.setText(pack.script)
-                Toast.makeText(this, "Pasted Gemini output into Script box!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Pasted Gemini script directly into Script box!", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this, "Auto-filled $filled fields from Mobile Gemini!", Toast.LENGTH_SHORT).show()
             }
@@ -312,22 +294,34 @@ class ProjectDetailActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnVoiceScript).setOnClickListener {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your video script naturally...")
+            val prompt = MobileGeminiBridge.buildGeminiVoiceScriptPrompt(
+                creatorStyle = store.getCreatorStyle(),
+                angle = edtAngle.text.toString().trim()
+            )
+            MobileGeminiBridge.openInMobileGemini(this, prompt)
+            Toast.makeText(this, "Tap Gemini's Mic to dictate, copy reply, then tap Smart Paste!", Toast.LENGTH_LONG).show()
+        }
+
+        // Phase 2 (v0.10.0): Open Teleprompter (Audio-Only or Facecam)
+        findViewById<Button>(R.id.btnRecordIntro).setOnClickListener {
+            persistFields(markPublished = false)
+            val scriptToRead = edtScript.text.toString().trim().ifBlank { edtAngle.text.toString().trim() }
+            if (scriptToRead.isEmpty()) {
+                Toast.makeText(this, "Add a Script or Angle first to read on the Teleprompter.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
-            try {
-                voiceLauncher.launch(intent)
-            } catch (e: Exception) {
-                Toast.makeText(this, "Voice input not supported on this device", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, TeleprompterActivity::class.java).apply {
+                putExtra(TeleprompterActivity.EXTRA_SCRIPT, scriptToRead)
+                putExtra(TeleprompterActivity.EXTRA_TITLE, edtTitle.text.toString().ifBlank { currentIdea.angle })
             }
+            startActivity(intent)
         }
 
         findViewById<Button>(R.id.btnHookInGemini).setOnClickListener {
             val angle = edtAngle.text.toString().trim()
             val script = edtScript.text.toString().trim()
             if (angle.isEmpty() && script.isEmpty()) {
-                Toast.makeText(this, "Add a Core Video Angle or Voice Script first.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Add a Core Video Angle or Script first.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             val prompt = MobileGeminiBridge.buildHookPrompt(store.getCreatorStyle(), angle, script)
@@ -356,22 +350,18 @@ class ProjectDetailActivity : AppCompatActivity() {
         val desc = edtDescription.text.toString().trim()
         val tags = edtTags.text.toString().trim()
 
-        // 1. Ensure branded thumbnail is freshly saved to Pictures/YTGemini (top of Gallery)
         val thumbFile = File(currentIdea.thumbnailPath)
         if (thumbFile.exists()) {
             ThumbnailBrander.saveToPublicGallery(this, thumbFile, title.ifBlank { currentIdea.id })
         }
 
-        // 2. Copy Title immediately to clipboard so first paste is instant
         if (title.isNotBlank()) {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText("YouTube Title", title))
         }
 
-        // 3. Pin the 1-tap Publish Pack notification (Copy Title / Copy Desc / Copy Tags)
         PublishPackReceiver.showPublishPackNotification(this, title, desc, tags)
 
-        // 4. Launch official YouTube Studio app directly
         Toast.makeText(
             this,
             "Title copied + Publish Pack pinned in notifications! Opening YT Studio...",

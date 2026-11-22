@@ -60,17 +60,15 @@ data class VideoIdea(
 data class ChannelStats(
     val title: String = "",
     val handle: String = "",
-    val subscribers: Long = 0L,
-    val totalViews: Long = 0L,
-    val videoCount: Long = 0L,
+    val subscribersText: String = "",
+    val videosText: String = "",
     val fetchedAt: Long = 0L
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("title", title)
         put("handle", handle)
-        put("subscribers", subscribers)
-        put("totalViews", totalViews)
-        put("videoCount", videoCount)
+        put("subscribersText", subscribersText)
+        put("videosText", videosText)
         put("fetchedAt", fetchedAt)
     }
 
@@ -80,9 +78,8 @@ data class ChannelStats(
             return ChannelStats(
                 title = obj.optString("title", ""),
                 handle = obj.optString("handle", ""),
-                subscribers = obj.optLong("subscribers", 0L),
-                totalViews = obj.optLong("totalViews", 0L),
-                videoCount = obj.optLong("videoCount", 0L),
+                subscribersText = obj.optString("subscribersText", ""),
+                videosText = obj.optString("videosText", ""),
                 fetchedAt = obj.optLong("fetchedAt", 0L)
             )
         }
@@ -98,7 +95,6 @@ class VaultStore(private val appContext: Context) {
         private const val KEY_CREATOR_STYLE = "creator_style_notes"
 
         private const val KEY_YT_HANDLE = "yt_channel_handle"
-        private const val KEY_YT_DATA_API_KEY = "yt_data_api_key"
         private const val KEY_CHANNEL_STATS = "yt_channel_stats_json"
         private const val KEY_STATS_DATE = "accountability_date"
         private const val KEY_WATCH_MINS = "watch_mins_today"
@@ -170,13 +166,8 @@ class VaultStore(private val appContext: Context) {
     }
 
     fun getYtHandle(): String = prefs.getString(KEY_YT_HANDLE, "") ?: ""
-    fun getYtDataApiKey(): String = prefs.getString(KEY_YT_DATA_API_KEY, "") ?: ""
-
-    fun saveYtChannelConfig(handle: String, apiKey: String) {
-        prefs.edit()
-            .putString(KEY_YT_HANDLE, handle.trim())
-            .putString(KEY_YT_DATA_API_KEY, apiKey.trim())
-            .apply()
+    fun saveYtHandle(handle: String) {
+        prefs.edit().putString(KEY_YT_HANDLE, handle.trim()).apply()
     }
 
     fun getChannelStats(): ChannelStats {
@@ -231,7 +222,7 @@ class VaultStore(private val appContext: Context) {
     fun exportVaultJson(): String {
         val root = JSONObject()
         root.put("app", "sm-yt-gemini")
-        root.put("schemaVersion", 8)
+        root.put("schemaVersion", 10)
         root.put("exportedAt", System.currentTimeMillis())
         root.put("creatorStyle", getCreatorStyle())
         root.put("ytHandle", getYtHandle())
@@ -247,9 +238,7 @@ class VaultStore(private val appContext: Context) {
         val style = root.optString("creatorStyle", "")
         if (style.isNotBlank()) saveCreatorStyle(style)
         val handle = root.optString("ytHandle", "")
-        if (handle.isNotBlank()) {
-            prefs.edit().putString(KEY_YT_HANDLE, handle).apply()
-        }
+        if (handle.isNotBlank()) saveYtHandle(handle)
         val arr = root.optJSONArray("ideas") ?: return 0
         val imported = mutableListOf<VideoIdea>()
         for (i in 0 until arr.length()) {

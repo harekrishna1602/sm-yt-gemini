@@ -53,7 +53,6 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Phase 2 (v0.8.0): Prominent 1-Click Export to YouTube Studio -->
             <Button
                 android:id="@+id/btnExportToStudio"
                 android:layout_width="match_parent"
@@ -246,7 +245,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="VOICE-TO-SCRIPT"
+                    android:text="SCRIPT &amp; TELEPROMPTER"
                     android:textColor="#8E96A4"
                     android:textSize="11sp"
                     android:textStyle="bold" />
@@ -256,7 +255,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="36dp"
                     android:backgroundTint="#34C759"
-                    android:text="Voice Dictate"
+                    android:text="Voice in Gemini"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
                     android:textSize="12sp"
@@ -270,23 +269,43 @@
                 android:layout_marginTop="8dp"
                 android:background="@drawable/bg_input_field"
                 android:gravity="top|start"
-                android:hint="Tap Voice Dictate and speak naturally, or type your script beats..."
+                android:hint="Tap Voice in Gemini to dictate with Gemini's mic, then Smart Paste here..."
                 android:padding="14dp"
                 android:textColor="#FFFFFF"
                 android:textColorHint="#5C6470"
                 android:textSize="14sp" />
 
-            <Button
-                android:id="@+id/btnHookInGemini"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:backgroundTint="#0A84FF"
-                android:text="Tighten 15s Hook in Mobile Gemini"
-                android:textAllCaps="false"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnRecordIntro"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:backgroundTint="#7C3AED"
+                    android:text="Record Intro"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnHookInGemini"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:backgroundTint="#0A84FF"
+                    android:text="15s Hook (AI)"
+                    android:textAllCaps="false"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <TextView
                 android:layout_width="wrap_content"

@@ -18,7 +18,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import java.io.FileOutputStream
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -171,12 +170,12 @@ class MainActivity : AppCompatActivity() {
 
         val ch = store.getChannelStats()
         if (ch.title.isNotBlank()) {
-            val nf = NumberFormat.getIntegerInstance(Locale.US)
             txtChannelName.text = "${ch.title} (${ch.handle})"
-            txtChannelNumbers.text = "${nf.format(ch.subscribers)} subs  •  ${nf.format(ch.totalViews)} views  •  ${ch.videoCount} videos"
+            val parts = listOf(ch.subscribersText, ch.videosText).filter { it.isNotBlank() }
+            txtChannelNumbers.text = if (parts.isNotEmpty()) parts.joinToString("  •  ") else "Tap to refresh stats"
         } else {
             txtChannelName.text = "Connect YouTube Channel"
-            txtChannelNumbers.text = "Tap to sync live Subs & Views via YouTube Data API v3"
+            txtChannelNumbers.text = "Tap to sync with just your @handle (Zero API Key)"
         }
 
         val watchMins = store.getWatchMinsToday()
@@ -188,7 +187,7 @@ class MainActivity : AppCompatActivity() {
             txtAccountabilityAlert.setTextColor(0xFFFF453A.toInt())
         } else {
             val logoNote = if (hasLogo) "Auto-Logo Ready" else "Add Logo in Brand"
-            txtAccountabilityAlert.text = "$logoNote • 1-Click Publish Ready"
+            txtAccountabilityAlert.text = "$logoNote • Teleprompter Ready"
             txtAccountabilityAlert.setTextColor(0xFF34C759.toInt())
         }
 
@@ -296,33 +295,30 @@ class MainActivity : AppCompatActivity() {
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         val edtHandle = view.findViewById<EditText>(R.id.edtYtHandle)
-        val edtYtKey = view.findViewById<EditText>(R.id.edtYtApiKey)
         val btnSync = view.findViewById<Button>(R.id.btnSyncChannel)
 
         edtHandle.setText(store.getYtHandle())
-        edtYtKey.setText(store.getYtDataApiKey())
 
         btnSync.setOnClickListener {
             val handle = edtHandle.text.toString().trim()
-            val key = edtYtKey.text.toString().trim()
-            if (handle.isEmpty() || key.isEmpty()) {
-                Toast.makeText(this, "Enter both @handle and YouTube Data API key", Toast.LENGTH_SHORT).show()
+            if (handle.isEmpty()) {
+                Toast.makeText(this, "Enter your @handle or channel link", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            store.saveYtChannelConfig(handle, key)
+            store.saveYtHandle(handle)
             btnSync.isEnabled = false
             btnSync.text = "Syncing..."
 
-            YouTubeDataClient.fetchChannelStats(handle, key) { result ->
+            YouTubeDataClient.fetchChannelStatsNoApiKey(handle) { result ->
                 runOnUiThread {
                     btnSync.isEnabled = true
-                    btnSync.text = "Sync Live Channel Stats"
+                    btnSync.text = "Sync Channel (No API Key)"
                     result.fold(
                         onSuccess = { stats ->
                             store.saveChannelStats(stats)
                             refreshUi()
                             dialog.dismiss()
-                            Toast.makeText(this, "Synced ${stats.title}!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "Connected ${stats.title}!", Toast.LENGTH_SHORT).show()
                         },
                         onFailure = { err ->
                             Toast.makeText(this, "Sync Error: ${err.message}", Toast.LENGTH_LONG).show()
