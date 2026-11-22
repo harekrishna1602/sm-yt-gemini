@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_surface_card"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Connect Gemini AI Engine"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Your key stays 100% on your device and talks directly to Google's official Gemini &amp; Imagen APIs."
+        android:textColor="#8E96A4"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/btnGetFreeKey"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Get a free API key at aistudio.google.com/apikey →"
+        android:textColor="#0A84FF"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/edtApiKey"
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_input_field"
+        android:hint="Paste Gemini API Key (AIza...)"
+        android:inputType="textPassword"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#5C6470"
+        android:textSize="13sp" />
+
+    <EditText
+        android:id="@+id/edtCreatorStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input_field"
+        android:hint="Your Setup &amp; Style (e.g. Faceless PC gaming, Hinglish, witty)"
+        android:padding="12dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#5C6470"
+        android:textSize="13sp" />
+
+    <Button
+        android:id="@+id/btnSaveAiSetup"
+        android:layout_width="match_parent"
+        android:layout_height="46dp"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="#FF3B30"
+        android:text="Save AI Setup"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/btnCancelAiSetup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="Cancel"
+        android:textColor="#8E96A4"
+        android:textSize="12sp" />
+</LinearLayout>
