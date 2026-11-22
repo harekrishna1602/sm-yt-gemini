@@ -1,7 +1,7 @@
-# sm-yt-gemini (v0.14.0 — In-App Updater + Active/Published Tabs)
+# sm-yt-gemini (v0.15.0 — Next Episode Repackage + Private Chat Guard)
 
 Official native Android Creator OS by **Studio Mogli**.
 
-## What's New in v0.14.0
-- **Active vs. Published Tabs:** Shipped videos automatically move into the **Published** tab so your **Active** workbench stays clean and focused.
-- **Silent In-App Update Checker:** Automatically checks GitHub Releases (`harekrishna1602/sm-yt-gemini`) and reveals a green **Update** pill in the header whenever a newer APK is ready.
+## What's New in v0.15.0
+- **Next Episode (Fresh Repackage):** Tap **Next Episode (Fresh Repackage)** inside any Idea (especially Published ones) to spin up a new Idea card and prompt Gemini to repackage the continuation as a fresh standalone video—strictly banning "Day 2 / Part 2" titles.
+- **Private Gemini Chat Guard:** Automatically detects public `g.co/gemini/share` links, warns you before saving/opening, and provides a 1-tap **Open Gemini Web** shortcut so you can copy your private `gemini.google.com/app/...` chat URL instead.

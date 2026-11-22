@@ -40,6 +40,7 @@ class ProjectDetailActivity : AppCompatActivity() {
     private lateinit var currentIdea: VideoIdea
 
     private lateinit var edtGeminiChatLink: EditText
+    private lateinit var txtChatPrivacyWarning: TextView
     private lateinit var edtVideoLink: EditText
     private lateinit var imgThumbnailPreview: ImageView
     private lateinit var edtAngle: EditText
@@ -173,6 +174,7 @@ class ProjectDetailActivity : AppCompatActivity() {
         }
 
         edtGeminiChatLink = findViewById(R.id.edtGeminiChatLink)
+        txtChatPrivacyWarning = findViewById(R.id.txtChatPrivacyWarning)
         edtVideoLink = findViewById(R.id.edtVideoLink)
         imgThumbnailPreview = findViewById(R.id.imgThumbnailPreview)
         edtAngle = findViewById(R.id.edtAngle)
@@ -205,7 +207,13 @@ class ProjectDetailActivity : AppCompatActivity() {
         }
         edtTitle.addTextChangedListener(watcher)
         edtThumbText.addTextChangedListener(watcher)
+        edtGeminiChatLink.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updateChatPrivacyGuard() }
+            override fun afterTextChanged(s: Editable?) {}
+        })
         updateGuardrails()
+        updateChatPrivacyGuard()
 
         findViewById<TextView>(R.id.btnBack).setOnClickListener {
             saveAndFinish(markPublished = false)
@@ -221,14 +229,20 @@ class ProjectDetailActivity : AppCompatActivity() {
             }
         }
 
+        txtChatPrivacyWarning.setOnClickListener {
+            showPrivateChatHelpDialog()
+        }
+
         findViewById<Button>(R.id.btnOpenGeminiChat).setOnClickListener {
             val chatUrl = edtGeminiChatLink.text.toString().trim()
-            if (chatUrl.isNotBlank()) {
+            if (chatUrl.isBlank()) {
+                showPrivateChatHelpDialog()
+            } else if (MobileGeminiBridge.isPublicShareLink(chatUrl)) {
+                showPrivateChatHelpDialog()
+            } else {
                 currentIdea.geminiChatLink = chatUrl
                 store.upsert(currentIdea)
                 MobileGeminiBridge.openSavedGeminiChat(this, chatUrl)
-            } else {
-                Toast.makeText(this, "Paste this video's Gemini chat link first!", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -253,6 +267,7 @@ class ProjectDetailActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             var filled = 0
+            if (pack.angle.isNotBlank()) { edtAngle.setText(pack.angle); filled++ }
             if (pack.title.isNotBlank()) { edtTitle.setText(pack.title); filled++ }
             if (pack.thumbText.isNotBlank()) { edtThumbText.setText(pack.thumbText); filled++ }
             if (pack.description.isNotBlank()) { edtDescription.setText(pack.description); filled++ }
@@ -375,6 +390,10 @@ class ProjectDetailActivity : AppCompatActivity() {
         btnPlayAudioTake.setOnClickListener { toggleInlineAudioPlayback() }
         btnPlayVideoTake.setOnClickListener { openRecordedVideoTake() }
 
+        findViewById<Button>(R.id.btnNextEpisodeRepackage).setOnClickListener {
+            showNextEpisodeRepackageDialog()
+        }
+
         findViewById<Button>(R.id.btnSaveIdea).setOnClickListener { saveAndFinish(markPublished = false) }
         findViewById<Button>(R.id.btnPublishIdea).setOnClickListener { saveAndFinish(markPublished = true) }
 
@@ -388,6 +407,78 @@ class ProjectDetailActivity : AppCompatActivity() {
                 .setNegativeButton("Cancel", null)
                 .show()
         }
+    }
+
+    private fun updateChatPrivacyGuard() {
+        val url = edtGeminiChatLink.text.toString().trim()
+        txtChatPrivacyWarning.visibility = if (MobileGeminiBridge.isPublicShareLink(url)) View.VISIBLE else View.GONE
+    }
+
+    private fun showPrivateChatHelpDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Keep Your Gemini Chat Private")
+            .setMessage(
+                "The Gemini app's Share button creates a PUBLIC snapshot link (g.co/gemini/share) that anyone with the link can view.\n\n" +
+                "To link your PRIVATE live chat instead:\n" +
+                "1. Tap 'Open Gemini Web' below (opens gemini.google.com in your browser).\n" +
+                "2. Open your chat from the left sidebar.\n" +
+                "3. Copy the URL from your browser's address bar (gemini.google.com/app/...) and paste it here.\n\n" +
+                "That URL stays 100% private to your Google account!"
+            )
+            .setPositiveButton("Open Gemini Web") { _, _ ->
+                MobileGeminiBridge.openGeminiWebForPrivateLink(this)
+            }
+            .setNegativeButton("Got it", null)
+            .show()
+    }
+
+    private fun showNextEpisodeRepackageDialog() {
+        persistFields(markPublished = false)
+        val input = EditText(this).apply {
+            hint = "What happens next in this episode? (optional)"
+            setTextColor(0xFFFFFFFF.toInt())
+            setHintTextColor(0xFF888888.toInt())
+            setPadding(36, 28, 36, 28)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Next Episode (Fresh Repackage)")
+            .setMessage(
+                "Creates a brand-new Idea card and asks Gemini to repackage the continuation as a standalone viral video (zero 'Day 2' or 'Part 2' fatigue).\n\n" +
+                "Copy Gemini's reply, come back, and tap Smart Paste!"
+            )
+            .setView(input)
+            .setPositiveButton("Build Next Episode") { _, _ ->
+                val whatsNext = input.text.toString().trim()
+                val chatUrl = edtGeminiChatLink.text.toString().trim()
+                val safeChatUrl = if (MobileGeminiBridge.isPublicShareLink(chatUrl)) "" else chatUrl
+
+                val nextIdea = VideoIdea(
+                    id = "idea_${System.currentTimeMillis()}",
+                    angle = whatsNext.ifBlank { "Next Episode: ${currentIdea.title.ifBlank { currentIdea.angle }}" },
+                    geminiChatLink = safeChatUrl,
+                    stage = VideoIdea.STAGE_IDEA
+                )
+                store.upsert(nextIdea)
+
+                val prompt = MobileGeminiBridge.buildNextEpisodeRepackagePrompt(
+                    creatorStyle = store.getCreatorStyle(),
+                    prevAngle = edtAngle.text.toString().trim(),
+                    prevTitle = edtTitle.text.toString().trim(),
+                    prevScript = edtScript.text.toString().trim(),
+                    whatsNext = whatsNext
+                )
+
+                // Switch this screen to the newly created Next Episode card so Smart Paste lands right here
+                val intent = Intent(this, ProjectDetailActivity::class.java).apply {
+                    putExtra(EXTRA_IDEA_ID, nextIdea.id)
+                }
+                startActivity(intent)
+                finish()
+
+                MobileGeminiBridge.openInMobileGemini(this, prompt, chatUrl = safeChatUrl)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun executeExportToStudio() {

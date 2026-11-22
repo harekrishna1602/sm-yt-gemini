@@ -106,6 +106,19 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/txtChatPrivacyWarning"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="#33FF9F0A"
+                android:padding="8dp"
+                android:text="⚠ Public Share Link detected! Tap here to get your private chat URL instead."
+                android:textColor="#FF9F0A"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
             <EditText
                 android:id="@+id/edtVideoLink"
                 android:layout_width="match_parent"
@@ -473,6 +486,18 @@
                 android:layout_marginTop="24dp"
                 android:backgroundTint="#1E293B"
                 android:text="Save Progress"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnNextEpisodeRepackage"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="10dp"
+                android:backgroundTint="#7C3AED"
+                android:text="Next Episode (Fresh Repackage)"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
                 android:textSize="14sp"

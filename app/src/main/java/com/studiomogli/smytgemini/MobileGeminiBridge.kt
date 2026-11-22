@@ -32,6 +32,24 @@ object MobileGeminiBridge {
         }
     }
 
+    fun isPublicShareLink(url: String): Boolean {
+        val lower = url.trim().lowercase()
+        return lower.contains("g.co/gemini/share") ||
+            lower.contains("gemini.google.com/share")
+    }
+
+    fun openGeminiWebForPrivateLink(context: Context) {
+        try {
+            val web = Intent(Intent.ACTION_VIEW, Uri.parse(GEMINI_WEB_FALLBACK)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(web)
+            Toast.makeText(context, "Open your chat in browser & copy the private URL!", Toast.LENGTH_LONG).show()
+        } catch (_: Exception) {
+            Toast.makeText(context, "Open gemini.google.com in your browser.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     fun openSavedGeminiChat(context: Context, chatUrl: String, copiedPrompt: Boolean = false) {
         val cleanUrl = chatUrl.trim()
         if (cleanUrl.isBlank()) {
@@ -191,6 +209,36 @@ object MobileGeminiBridge {
         append("- Reply using these EXACT labels so my app can auto-fill them when I copy your reply:\n\n")
         append("TITLE: <your best title>\n")
         append("THUMB: <2-4 word thumbnail text>\n")
+        append("DESC: <2-paragraph YouTube description with subscribe CTA>\n")
+        append("TAGS: <10-15 comma-separated tags>")
+    }
+
+    fun buildNextEpisodeRepackagePrompt(
+        creatorStyle: String,
+        prevAngle: String,
+        prevTitle: String,
+        prevScript: String,
+        whatsNext: String
+    ): String = buildString {
+        append("You are my YouTube CTR & sequel-packaging strategist.\n")
+        if (creatorStyle.isNotBlank()) append("MY SETUP & STYLE: ").append(creatorStyle).append("\n")
+        append("\nPREVIOUS VIDEO CONTEXT:\n")
+        if (prevTitle.isNotBlank()) append("- Previous Title: ").append(prevTitle).append("\n")
+        if (prevAngle.isNotBlank()) append("- Previous Angle: ").append(prevAngle).append("\n")
+        if (prevScript.isNotBlank()) append("- Previous Script Summary: ").append(prevScript.take(600)).append("\n")
+        if (whatsNext.isNotBlank()) {
+            append("\nWHAT HAPPENS NEXT IN THIS NEW EPISODE:\n").append(whatsNext).append("\n")
+        }
+        append("\nTASK: Repackage the next episode so it feels like a BRAND-NEW standalone viral video.\n")
+        append("STRICT RULES:\n")
+        append("- NEVER use 'Day 2', 'Part 2', 'Episode 2', 'Ep 2', or '#2' in the TITLE or THUMB.\n")
+        append("- Frame it around a fresh standalone hook, twist, or escalation so new viewers click without needing to watch the previous video.\n")
+        append("- TITLE must be under 55 characters.\n")
+        append("- THUMB must be 2 to 4 words MAX and NEVER repeat words from TITLE.\n")
+        append("- Reply using these EXACT labels so my app auto-fills the new episode card in 1 tap:\n\n")
+        append("ANGLE: <1-sentence fresh standalone hook for this next episode>\n")
+        append("TITLE: <high-CTR standalone title under 55 chars>\n")
+        append("THUMB: <2-4 word thumbnail text, zero words repeated from title>\n")
         append("DESC: <2-paragraph YouTube description with subscribe CTA>\n")
         append("TAGS: <10-15 comma-separated tags>")
     }
