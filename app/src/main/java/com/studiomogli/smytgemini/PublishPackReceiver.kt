@@ -38,7 +38,7 @@ class PublishPackReceiver : BroadcastReceiver() {
                     "YouTube Studio Publish Pack",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "1-tap Copy Title, Description, and Tags while publishing in YouTube Studio"
+                    this.description = "1-tap Copy Title, Description, and Tags while publishing in YouTube Studio"
                 }
                 manager.createNotificationChannel(channel)
             }
