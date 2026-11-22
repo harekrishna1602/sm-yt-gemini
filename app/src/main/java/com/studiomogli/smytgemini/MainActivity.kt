@@ -1,6 +1,9 @@
 package com.studiomogli.smytgemini
 
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -17,12 +20,20 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+import org.json.JSONObject
 import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        private const val GITHUB_LATEST_RELEASE_API =
+            "https://api.github.com/repos/harekrishna1602/sm-yt-gemini/releases/latest"
+    }
 
     private lateinit var store: VaultStore
     private lateinit var adapter: IdeaAdapter
@@ -32,6 +43,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var txtStreakCount: TextView
     private lateinit var txtDriveStatus: TextView
     private lateinit var btnCreatorStyle: TextView
+    private lateinit var btnUpdateApp: TextView
+    private lateinit var btnTabActive: TextView
+    private lateinit var btnTabPublished: TextView
+    private lateinit var txtEmptyTitle: TextView
+    private lateinit var txtEmptySub: TextView
+
+    private var showingPublishedTab = false
+    private var updateDownloadUrl: String? = null
 
     private lateinit var cardChannelStats: LinearLayout
     private lateinit var txtChannelName: TextView
@@ -119,6 +138,11 @@ class MainActivity : AppCompatActivity() {
         txtStreakCount = findViewById(R.id.txtStreakCount)
         txtDriveStatus = findViewById(R.id.txtDriveStatus)
         btnCreatorStyle = findViewById(R.id.btnCreatorStyle)
+        btnUpdateApp = findViewById(R.id.btnUpdateApp)
+        btnTabActive = findViewById(R.id.btnTabActive)
+        btnTabPublished = findViewById(R.id.btnTabPublished)
+        txtEmptyTitle = findViewById(R.id.txtEmptyTitle)
+        txtEmptySub = findViewById(R.id.txtEmptySub)
 
         cardChannelStats = findViewById(R.id.cardChannelStats)
         txtChannelName = findViewById(R.id.txtChannelName)
@@ -160,6 +184,31 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnImportGeminiIdea).setOnClickListener {
             importIdeaFromGeminiClipboard()
+        }
+
+        btnTabActive.setOnClickListener {
+            showingPublishedTab = false
+            refreshUi()
+        }
+
+        btnTabPublished.setOnClickListener {
+            showingPublishedTab = true
+            refreshUi()
+        }
+
+        btnUpdateApp.setOnClickListener {
+            val url = updateDownloadUrl
+            if (!url.isNullOrBlank()) {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                } catch (_: Exception) {
+                    Toast.makeText(this, "Unable to open update link", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        if (savedInstanceState == null) {
+            checkForGitHubUpdateSilently()
         }
     }
 
@@ -212,9 +261,41 @@ class MainActivity : AppCompatActivity() {
             "100% private on your device. Tap Drive Vault to back up to Google Drive."
         }
 
-        adapter.updateData(all)
-        emptyState.visibility = if (all.isEmpty()) View.VISIBLE else View.GONE
-        recyclerView.visibility = if (all.isEmpty()) View.GONE else View.VISIBLE
+        val activeList = all.filter { it.stage != VideoIdea.STAGE_PUBLISHED }
+        val publishedList = all.filter { it.stage == VideoIdea.STAGE_PUBLISHED }
+
+        btnTabActive.text = "Active (${activeList.size})"
+        btnTabPublished.text = "Published (${publishedList.size})"
+
+        if (showingPublishedTab) {
+            btnTabPublished.setBackgroundResource(R.drawable.bg_badge_green)
+            btnTabPublished.setTextColor(0xFFFFFFFF.toInt())
+            btnTabActive.setBackgroundResource(R.drawable.bg_pill_surface)
+            btnTabActive.setTextColor(0xFF9CA3AF.toInt())
+        } else {
+            btnTabActive.setBackgroundResource(R.drawable.bg_badge_red)
+            btnTabActive.setTextColor(0xFFFFFFFF.toInt())
+            btnTabPublished.setBackgroundResource(R.drawable.bg_pill_surface)
+            btnTabPublished.setTextColor(0xFF9CA3AF.toInt())
+        }
+
+        val visibleList = if (showingPublishedTab) publishedList else activeList
+        adapter.updateData(visibleList)
+
+        if (visibleList.isEmpty()) {
+            emptyState.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+            if (showingPublishedTab) {
+                txtEmptyTitle.text = "No Published Videos Yet"
+                txtEmptySub.text = "Mark an idea as Published when it goes live—it will move here automatically."
+            } else {
+                txtEmptyTitle.text = "No Active Ideas"
+                txtEmptySub.text = "Tap + New Idea to start scripting, recording, and packaging your next video."
+            }
+        } else {
+            emptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+        }
     }
 
     private fun openProjectDetail(ideaId: String?) {
@@ -343,6 +424,76 @@ class MainActivity : AppCompatActivity() {
 
         view.findViewById<TextView>(R.id.btnCancelChannel).setOnClickListener { dialog.dismiss() }
         dialog.show()
+    }
+
+    private fun checkForGitHubUpdateSilently() {
+        Thread {
+            var conn: HttpURLConnection? = null
+            try {
+                conn = (URL(GITHUB_LATEST_RELEASE_API).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 5000
+                    readTimeout = 5000
+                    setRequestProperty("Accept", "application/vnd.github+json")
+                    setRequestProperty("User-Agent", "sm-yt-gemini-StudioMogli")
+                }
+                if (conn.responseCode != HttpURLConnection.HTTP_OK) return@Thread
+
+                val body = conn.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(body)
+                val latestTag = json.optString("tag_name", "").trim()
+                if (latestTag.isEmpty() || !isNewerVersion(latestTag, getCurrentVersionName())) return@Thread
+
+                var downloadUrl = json.optString("html_url", "")
+                val assets = json.optJSONArray("assets")
+                if (assets != null) {
+                    for (i in 0 until assets.length()) {
+                        val asset = assets.optJSONObject(i) ?: continue
+                        val name = asset.optString("name", "").lowercase()
+                        val directUrl = asset.optString("browser_download_url", "")
+                        if (name.endsWith(".apk") && directUrl.isNotBlank()) {
+                            downloadUrl = directUrl
+                            break
+                        }
+                    }
+                }
+
+                if (downloadUrl.isNotBlank()) {
+                    runOnUiThread {
+                        if (!isFinishing && !isDestroyed) {
+                            updateDownloadUrl = downloadUrl
+                            btnUpdateApp.visibility = View.VISIBLE
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+            } finally {
+                conn?.disconnect()
+            }
+        }.start()
+    }
+
+    private fun getCurrentVersionName(): String = try {
+        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION") packageManager.getPackageInfo(packageName, 0)
+        }
+        info.versionName ?: "0.14.0"
+    } catch (_: Exception) { "0.14.0" }
+
+    private fun isNewerVersion(latestRaw: String, currentRaw: String): Boolean {
+        val lParts = latestRaw.removePrefix("v").removePrefix("V")
+            .split(".").map { it.filter(Char::isDigit).toIntOrNull() ?: 0 }
+        val cParts = currentRaw.removePrefix("v").removePrefix("V")
+            .split(".").map { it.filter(Char::isDigit).toIntOrNull() ?: 0 }
+        for (i in 0 until maxOf(lParts.size, cParts.size)) {
+            val l = lParts.getOrElse(i) { 0 }
+            val c = cParts.getOrElse(i) { 0 }
+            if (l > c) return true
+            if (l < c) return false
+        }
+        return false
     }
 
     private fun showDriveVaultDialog() {

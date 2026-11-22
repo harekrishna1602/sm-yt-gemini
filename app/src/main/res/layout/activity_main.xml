@@ -28,6 +28,21 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/btnUpdateApp"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_badge_green"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:text="Update"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/btnCreatorStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="34dp"
@@ -232,6 +247,41 @@
             android:textColor="#8E96A4"
             android:textSize="11sp" />
 
+        <!-- Active vs Published Segmented Filter Tabs -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btnTabActive"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_badge_red"
+                android:gravity="center"
+                android:text="Active (0)"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btnTabPublished"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_pill_surface"
+                android:gravity="center"
+                android:text="Published (0)"
+                android:textColor="#9CA3AF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <LinearLayout
             android:id="@+id/emptyStateLayout"
             android:layout_width="match_parent"
@@ -242,19 +292,21 @@
             android:padding="24dp">
 
             <TextView
+                android:id="@+id/txtEmptyTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Creator OS v0.10 Ready"
+                android:text="No Active Ideas"
                 android:textColor="#FFFFFF"
                 android:textSize="17sp"
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/txtEmptySub"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:gravity="center"
-                android:text="Dictate with Gemini Voice, record your intro on the built-in Teleprompter, auto-brand your thumbnail, and export in 1 click."
+                android:text="Tap + New Idea to start scripting, recording, and packaging your next video."
                 android:textColor="#8E96A4"
                 android:textSize="12sp" />
         </LinearLayout>
