@@ -1,6 +1,7 @@
 package com.studiomogli.smytgemini
 
 import android.content.Context
+import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -15,9 +16,12 @@ data class VideoIdea(
     var title: String = "",
     var thumbText: String = "",
     var videoLink: String = "",
+    var geminiChatLink: String = "",
     var description: String = "",
     var tags: String = "",
     var thumbnailPath: String = "",
+    var recordedAudioUri: String = "",
+    var recordedVideoUri: String = "",
     var stage: String = STAGE_IDEA,
     var updatedAt: Long = System.currentTimeMillis()
 ) {
@@ -28,9 +32,12 @@ data class VideoIdea(
         put("title", title)
         put("thumbText", thumbText)
         put("videoLink", videoLink)
+        put("geminiChatLink", geminiChatLink)
         put("description", description)
         put("tags", tags)
         put("thumbnailPath", thumbnailPath)
+        put("recordedAudioUri", recordedAudioUri)
+        put("recordedVideoUri", recordedVideoUri)
         put("stage", stage)
         put("updatedAt", updatedAt)
     }
@@ -48,9 +55,12 @@ data class VideoIdea(
             title = obj.optString("title", ""),
             thumbText = obj.optString("thumbText", ""),
             videoLink = obj.optString("videoLink", ""),
+            geminiChatLink = obj.optString("geminiChatLink", ""),
             description = obj.optString("description", ""),
             tags = obj.optString("tags", ""),
             thumbnailPath = obj.optString("thumbnailPath", ""),
+            recordedAudioUri = obj.optString("recordedAudioUri", ""),
+            recordedVideoUri = obj.optString("recordedVideoUri", ""),
             stage = obj.optString("stage", STAGE_IDEA),
             updatedAt = obj.optLong("updatedAt", System.currentTimeMillis())
         )
@@ -222,13 +232,36 @@ class VaultStore(private val appContext: Context) {
     fun exportVaultJson(): String {
         val root = JSONObject()
         root.put("app", "sm-yt-gemini")
-        root.put("schemaVersion", 10)
+        root.put("schemaVersion", 13)
         root.put("exportedAt", System.currentTimeMillis())
         root.put("creatorStyle", getCreatorStyle())
         root.put("ytHandle", getYtHandle())
         root.put("streakDays", getStreakDays())
+
+        val logoFile = getBrandLogoFile()
+        if (logoFile.exists()) {
+            try {
+                val logoBytes = logoFile.readBytes()
+                root.put("brandLogoBase64", Base64.encodeToString(logoBytes, Base64.NO_WRAP))
+            } catch (_: Exception) {
+            }
+        }
+
         val arr = JSONArray()
-        getAllIdeas().forEach { arr.put(it.toJson()) }
+        getAllIdeas().forEach { idea ->
+            val obj = idea.toJson()
+            if (idea.thumbnailPath.isNotBlank()) {
+                val thumbFile = File(idea.thumbnailPath)
+                if (thumbFile.exists()) {
+                    try {
+                        val thumbBytes = thumbFile.readBytes()
+                        obj.put("thumbnailBase64", Base64.encodeToString(thumbBytes, Base64.NO_WRAP))
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+            arr.put(obj)
+        }
         root.put("ideas", arr)
         return root.toString(2)
     }
@@ -239,11 +272,35 @@ class VaultStore(private val appContext: Context) {
         if (style.isNotBlank()) saveCreatorStyle(style)
         val handle = root.optString("ytHandle", "")
         if (handle.isNotBlank()) saveYtHandle(handle)
+
+        val logoB64 = root.optString("brandLogoBase64", "")
+        if (logoB64.isNotBlank()) {
+            try {
+                val bytes = Base64.decode(logoB64, Base64.DEFAULT)
+                getBrandLogoFile().writeBytes(bytes)
+            } catch (_: Exception) {
+            }
+        }
+
         val arr = root.optJSONArray("ideas") ?: return 0
+        val thumbDir = File(appContext.filesDir, "thumbnails")
+        if (!thumbDir.exists()) thumbDir.mkdirs()
+
         val imported = mutableListOf<VideoIdea>()
         for (i in 0 until arr.length()) {
             val obj = arr.optJSONObject(i) ?: continue
-            imported.add(VideoIdea.fromJson(obj))
+            val idea = VideoIdea.fromJson(obj)
+            val thumbB64 = obj.optString("thumbnailBase64", "")
+            if (thumbB64.isNotBlank()) {
+                try {
+                    val bytes = Base64.decode(thumbB64, Base64.DEFAULT)
+                    val restoredThumb = File(thumbDir, "thumb_${idea.id}.jpg")
+                    restoredThumb.writeBytes(bytes)
+                    idea.thumbnailPath = restoredThumb.absolutePath
+                } catch (_: Exception) {
+                }
+            }
+            imported.add(idea)
         }
         if (imported.isNotEmpty()) {
             saveAll(imported)

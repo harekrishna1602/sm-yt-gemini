@@ -32,9 +32,43 @@ object MobileGeminiBridge {
         }
     }
 
-    fun openInMobileGemini(context: Context, prompt: String, mediaUri: Uri? = null, mimeType: String = "video/*") {
+    fun openSavedGeminiChat(context: Context, chatUrl: String, copiedPrompt: Boolean = false) {
+        val cleanUrl = chatUrl.trim()
+        if (cleanUrl.isBlank()) {
+            Toast.makeText(context, "Paste your Gemini chat link first.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val uri = Uri.parse(if (cleanUrl.startsWith("http")) cleanUrl else "https://$cleanUrl")
+        val viewIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(viewIntent)
+            val msg = if (copiedPrompt) {
+                "Prompt copied! Opening this video's Gemini chat..."
+            } else {
+                "Opening this video's Gemini chat..."
+            }
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+            Toast.makeText(context, "Could not open chat link. Check the URL.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun openInMobileGemini(
+        context: Context,
+        prompt: String,
+        mediaUri: Uri? = null,
+        mimeType: String = "video/*",
+        chatUrl: String = ""
+    ) {
         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("YT Gemini Prompt", prompt))
+
+        if (chatUrl.isNotBlank() && mediaUri == null) {
+            openSavedGeminiChat(context, chatUrl, copiedPrompt = true)
+            return
+        }
 
         val installed = isGeminiAppInstalled(context)
 

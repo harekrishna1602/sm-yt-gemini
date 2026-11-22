@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -17,6 +19,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,6 +39,7 @@ class ProjectDetailActivity : AppCompatActivity() {
     private lateinit var store: VaultStore
     private lateinit var currentIdea: VideoIdea
 
+    private lateinit var edtGeminiChatLink: EditText
     private lateinit var edtVideoLink: EditText
     private lateinit var imgThumbnailPreview: ImageView
     private lateinit var edtAngle: EditText
@@ -46,6 +50,10 @@ class ProjectDetailActivity : AppCompatActivity() {
     private lateinit var txtThumbGuard: TextView
     private lateinit var edtDescription: EditText
     private lateinit var edtTags: EditText
+    private lateinit var recordedTakesSection: LinearLayout
+    private lateinit var btnPlayAudioTake: Button
+    private lateinit var btnPlayVideoTake: Button
+    private var inlineAudioPlayer: MediaPlayer? = null
 
     private val createTimerHandler = Handler(Looper.getMainLooper())
     private val createTimerRunnable = object : Runnable {
@@ -53,6 +61,21 @@ class ProjectDetailActivity : AppCompatActivity() {
             store.addCreateSecondsToday(5)
             createTimerHandler.postDelayed(this, 5000L)
         }
+    }
+
+    private val teleprompterLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data
+        val audioUri = data?.getStringExtra(TeleprompterActivity.RESULT_AUDIO_URI)
+        val videoUri = data?.getStringExtra(TeleprompterActivity.RESULT_VIDEO_URI)
+        if (!audioUri.isNullOrBlank()) currentIdea.recordedAudioUri = audioUri
+        if (!videoUri.isNullOrBlank()) currentIdea.recordedVideoUri = videoUri
+        store.getById(currentIdea.id)?.let { fresh ->
+            if (fresh.recordedAudioUri.isNotBlank()) currentIdea.recordedAudioUri = fresh.recordedAudioUri
+            if (fresh.recordedVideoUri.isNotBlank()) currentIdea.recordedVideoUri = fresh.recordedVideoUri
+        }
+        renderRecordedTakes()
     }
 
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -110,6 +133,7 @@ class ProjectDetailActivity : AppCompatActivity() {
                     if (stamped) {
                         currentIdea.thumbnailPath = finalFile.absolutePath
                         renderThumbnailPreview()
+        renderRecordedTakes()
                         val savedPublic = ThumbnailBrander.saveToPublicGallery(
                             this,
                             finalFile,
@@ -128,6 +152,7 @@ class ProjectDetailActivity : AppCompatActivity() {
                 rawFile.copyTo(finalFile, overwrite = true)
                 currentIdea.thumbnailPath = finalFile.absolutePath
                 renderThumbnailPreview()
+        renderRecordedTakes()
                 Toast.makeText(this, "Thumbnail attached! (Set your logo in Brand & Logo to auto-cover watermark)", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 Toast.makeText(this, "Could not attach image", Toast.LENGTH_SHORT).show()
@@ -147,6 +172,7 @@ class ProjectDetailActivity : AppCompatActivity() {
             VideoIdea(id = "idea_${System.currentTimeMillis()}", angle = "")
         }
 
+        edtGeminiChatLink = findViewById(R.id.edtGeminiChatLink)
         edtVideoLink = findViewById(R.id.edtVideoLink)
         imgThumbnailPreview = findViewById(R.id.imgThumbnailPreview)
         edtAngle = findViewById(R.id.edtAngle)
@@ -157,7 +183,11 @@ class ProjectDetailActivity : AppCompatActivity() {
         txtThumbGuard = findViewById(R.id.txtThumbGuard)
         edtDescription = findViewById(R.id.edtDescription)
         edtTags = findViewById(R.id.edtTags)
+        recordedTakesSection = findViewById(R.id.recordedTakesSection)
+        btnPlayAudioTake = findViewById(R.id.btnPlayAudioTake)
+        btnPlayVideoTake = findViewById(R.id.btnPlayVideoTake)
 
+        edtGeminiChatLink.setText(currentIdea.geminiChatLink)
         edtVideoLink.setText(currentIdea.videoLink)
         edtAngle.setText(currentIdea.angle)
         edtScript.setText(currentIdea.script)
@@ -166,6 +196,7 @@ class ProjectDetailActivity : AppCompatActivity() {
         edtDescription.setText(currentIdea.description)
         edtTags.setText(currentIdea.tags)
         renderThumbnailPreview()
+        renderRecordedTakes()
 
         val watcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -190,6 +221,17 @@ class ProjectDetailActivity : AppCompatActivity() {
             }
         }
 
+        findViewById<Button>(R.id.btnOpenGeminiChat).setOnClickListener {
+            val chatUrl = edtGeminiChatLink.text.toString().trim()
+            if (chatUrl.isNotBlank()) {
+                currentIdea.geminiChatLink = chatUrl
+                store.upsert(currentIdea)
+                MobileGeminiBridge.openSavedGeminiChat(this, chatUrl)
+            } else {
+                Toast.makeText(this, "Paste this video's Gemini chat link first!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         findViewById<Button>(R.id.btnSendVideoToGemini).setOnClickListener {
             pickVideoForGeminiLauncher.launch("video/*")
         }
@@ -201,7 +243,7 @@ class ProjectDetailActivity : AppCompatActivity() {
                 script = edtScript.text.toString().trim(),
                 videoLink = edtVideoLink.text.toString().trim()
             )
-            MobileGeminiBridge.openInMobileGemini(this, prompt)
+            MobileGeminiBridge.openInMobileGemini(this, prompt, chatUrl = edtGeminiChatLink.text.toString().trim())
         }
 
         findViewById<Button>(R.id.btnSmartPasteGemini).setOnClickListener {
@@ -250,7 +292,7 @@ class ProjectDetailActivity : AppCompatActivity() {
                             angle = edtAngle.text.toString().trim(),
                             hasRefImage = false
                         )
-                        MobileGeminiBridge.openInMobileGemini(this, prompt)
+                        MobileGeminiBridge.openInMobileGemini(this, prompt, chatUrl = edtGeminiChatLink.text.toString().trim())
                     } else {
                         pickRefPhotoForThumbLauncher.launch("image/*")
                     }
@@ -278,6 +320,7 @@ class ProjectDetailActivity : AppCompatActivity() {
             if (ok) {
                 currentIdea.thumbnailPath = outFile.absolutePath
                 renderThumbnailPreview()
+        renderRecordedTakes()
                 val saved = ThumbnailBrander.saveToPublicGallery(
                     this,
                     outFile,
@@ -298,7 +341,7 @@ class ProjectDetailActivity : AppCompatActivity() {
                 creatorStyle = store.getCreatorStyle(),
                 angle = edtAngle.text.toString().trim()
             )
-            MobileGeminiBridge.openInMobileGemini(this, prompt)
+            MobileGeminiBridge.openInMobileGemini(this, prompt, chatUrl = edtGeminiChatLink.text.toString().trim())
             Toast.makeText(this, "Tap Gemini's Mic to dictate, copy reply, then tap Smart Paste!", Toast.LENGTH_LONG).show()
         }
 
@@ -313,8 +356,9 @@ class ProjectDetailActivity : AppCompatActivity() {
             val intent = Intent(this, TeleprompterActivity::class.java).apply {
                 putExtra(TeleprompterActivity.EXTRA_SCRIPT, scriptToRead)
                 putExtra(TeleprompterActivity.EXTRA_TITLE, edtTitle.text.toString().ifBlank { currentIdea.angle })
+                putExtra(TeleprompterActivity.EXTRA_IDEA_ID, currentIdea.id)
             }
-            startActivity(intent)
+            teleprompterLauncher.launch(intent)
         }
 
         findViewById<Button>(R.id.btnHookInGemini).setOnClickListener {
@@ -325,8 +369,11 @@ class ProjectDetailActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             val prompt = MobileGeminiBridge.buildHookPrompt(store.getCreatorStyle(), angle, script)
-            MobileGeminiBridge.openInMobileGemini(this, prompt)
+            MobileGeminiBridge.openInMobileGemini(this, prompt, chatUrl = edtGeminiChatLink.text.toString().trim())
         }
+
+        btnPlayAudioTake.setOnClickListener { toggleInlineAudioPlayback() }
+        btnPlayVideoTake.setOnClickListener { openRecordedVideoTake() }
 
         findViewById<Button>(R.id.btnSaveIdea).setOnClickListener { saveAndFinish(markPublished = false) }
         findViewById<Button>(R.id.btnPublishIdea).setOnClickListener { saveAndFinish(markPublished = true) }
@@ -378,7 +425,66 @@ class ProjectDetailActivity : AppCompatActivity() {
 
     override fun onPause() {
         createTimerHandler.removeCallbacks(createTimerRunnable)
+        stopInlineAudio()
         super.onPause()
+    }
+
+    private fun renderRecordedTakes() {
+        val hasAudio = currentIdea.recordedAudioUri.isNotBlank()
+        val hasVideo = currentIdea.recordedVideoUri.isNotBlank()
+        recordedTakesSection.visibility = if (hasAudio || hasVideo) View.VISIBLE else View.GONE
+        btnPlayAudioTake.visibility = if (hasAudio) View.VISIBLE else View.GONE
+        btnPlayVideoTake.visibility = if (hasVideo) View.VISIBLE else View.GONE
+    }
+
+    private fun toggleInlineAudioPlayback() {
+        if (inlineAudioPlayer != null) {
+            stopInlineAudio()
+            return
+        }
+        val uriStr = currentIdea.recordedAudioUri
+        if (uriStr.isBlank()) return
+        try {
+            val mp = MediaPlayer().apply {
+                setDataSource(this@ProjectDetailActivity, Uri.parse(uriStr))
+                setOnCompletionListener { stopInlineAudio() }
+                prepare()
+                start()
+            }
+            inlineAudioPlayer = mp
+            btnPlayAudioTake.text = "Stop Audio"
+            btnPlayAudioTake.setBackgroundColor(0xFFFF3B30.toInt())
+        } catch (e: Exception) {
+            Toast.makeText(this, "Audio file not found in Music/YTGemini.", Toast.LENGTH_SHORT).show()
+            stopInlineAudio()
+        }
+    }
+
+    private fun stopInlineAudio() {
+        try {
+            inlineAudioPlayer?.stop()
+            inlineAudioPlayer?.release()
+        } catch (_: Exception) {
+        }
+        inlineAudioPlayer = null
+        if (::btnPlayAudioTake.isInitialized) {
+            btnPlayAudioTake.text = "Play Audio"
+            btnPlayAudioTake.setBackgroundColor(0xFF34C759.toInt())
+        }
+    }
+
+    private fun openRecordedVideoTake() {
+        val uriStr = currentIdea.recordedVideoUri
+        if (uriStr.isBlank()) return
+        try {
+            val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(Uri.parse(uriStr), "video/*")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(viewIntent)
+        } catch (_: Exception) {
+            Toast.makeText(this, "Video file not found in Movies/YTGemini.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun getRawThumbnailFile(): File {
@@ -441,6 +547,7 @@ class ProjectDetailActivity : AppCompatActivity() {
         val script = edtScript.text.toString().trim()
         val title = edtTitle.text.toString().trim()
         val thumb = edtThumbText.text.toString().trim()
+        val chatLink = edtGeminiChatLink.text.toString().trim()
         val link = edtVideoLink.text.toString().trim()
         val desc = edtDescription.text.toString().trim()
         val tags = edtTags.text.toString().trim()
@@ -453,6 +560,7 @@ class ProjectDetailActivity : AppCompatActivity() {
         currentIdea.script = script
         currentIdea.title = title
         currentIdea.thumbText = thumb
+        currentIdea.geminiChatLink = chatLink
         currentIdea.videoLink = link
         currentIdea.description = desc
         currentIdea.tags = tags

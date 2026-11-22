@@ -13,8 +13,8 @@ android {
         applicationId = "com.studiomogli.smytgemini"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.10.0"
+        versionCode = 13
+        versionName = "0.13.0"
     }
 
     signingConfigs {

@@ -1,8 +1,7 @@
-# sm-yt-gemini (v0.10.0 — Record Intro Teleprompter)
+# sm-yt-gemini (v0.13.0 — Full Media Google Drive Vault)
 
 Official native Android Creator OS by **Studio Mogli**.
 
-## What's New in v0.10.0
-- **Record Intro Teleprompter (`TeleprompterActivity.kt`):** Tap **Record Intro** right below your script to launch a full-screen, auto-scrolling teleprompter with adjustable scroll speed (`1x–8x`) and live `REC` timer.
-- **Audio-Only Mode:** Records crisp `.m4a` voiceovers straight to `Music/YTGemini` for faceless/voiceover workflows.
-- **Facecam Mode (CameraX):** Live front-camera preview behind a translucent dark script overlay—records HD `.mp4` straight to `Movies/YTGemini` in your Gallery.
+## What's New in v0.13.0
+- **Full Media Drive Vault (`VaultStore.kt`):** Backing up to Google Drive now embeds your **Channel Brand Logo** and every Idea's **Thumbnail** directly inside `sm-yt-gemini-vault.json`.
+- **1-Tap Full Restore:** Restoring your vault on a new phone or after reinstalling brings back your Ideas, Scripts, Linked Gemini Chats, Brand Logo, and Thumbnails automatically—on a smooth background thread.

@@ -52,8 +52,10 @@ class IdeaAdapter(
         }
 
         val wordCount = if (idea.script.isBlank()) 0 else idea.script.trim().split(Regex("\\s+")).size
-        val hasMeta = if (idea.tags.isNotBlank()) " • SEO Ready" else ""
-        holder.txtMeta.text = "$wordCount words in script$hasMeta"
+        val tagsFlag = if (idea.tags.isNotBlank()) " • SEO" else ""
+        val audioFlag = if (idea.recordedAudioUri.isNotBlank()) " • Audio" else ""
+        val videoFlag = if (idea.recordedVideoUri.isNotBlank()) " • Facecam" else ""
+        holder.txtMeta.text = "$wordCount words$tagsFlag$audioFlag$videoFlag"
 
         holder.itemView.setOnClickListener { onClick(idea) }
     }

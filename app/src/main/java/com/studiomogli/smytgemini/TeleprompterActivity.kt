@@ -1,7 +1,10 @@
 package com.studiomogli.smytgemini
 
 import android.Manifest
+import android.app.Activity
 import android.content.ContentValues
+import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
 import android.os.Build
@@ -38,6 +41,9 @@ class TeleprompterActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_SCRIPT = "extra_script"
         const val EXTRA_TITLE = "extra_title"
+        const val EXTRA_IDEA_ID = "extra_idea_id"
+        const val RESULT_AUDIO_URI = "result_audio_uri"
+        const val RESULT_VIDEO_URI = "result_video_uri"
     }
 
     private lateinit var cameraPreview: PreviewView
@@ -56,6 +62,9 @@ class TeleprompterActivity : AppCompatActivity() {
     private var scrollSpeedPx = 3
     private var elapsedSeconds = 0
     private var videoTitle = "Intro"
+    private var ideaId = ""
+    private var lastSavedAudioUri = ""
+    private var lastSavedVideoUri = ""
 
     // Audio-Only Recorder
     private var audioRecorder: MediaRecorder? = null
@@ -126,6 +135,7 @@ class TeleprompterActivity : AppCompatActivity() {
 
         val script = intent.getStringExtra(EXTRA_SCRIPT)?.trim().orEmpty()
         videoTitle = intent.getStringExtra(EXTRA_TITLE)?.trim().orEmpty().ifBlank { "Intro" }
+        ideaId = intent.getStringExtra(EXTRA_IDEA_ID)?.trim().orEmpty()
 
         txtPrompterScript.text = if (script.isNotBlank()) {
             "\n\n$script\n\n\n\n— END OF SCRIPT —\n\n\n"
@@ -135,7 +145,7 @@ class TeleprompterActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.btnClosePrompter).setOnClickListener {
             if (isRecording) stopRecording()
-            finish()
+            deliverResultAndFinish()
         }
 
         btnModeAudio.setOnClickListener {
@@ -322,7 +332,10 @@ class TeleprompterActivity : AppCompatActivity() {
                 is VideoRecordEvent.Finalize -> {
                     setRecordingUiActive(false)
                     if (!event.hasError()) {
-                        Toast.makeText(this, "Facecam saved to Movies/YTGemini!", Toast.LENGTH_LONG).show()
+                        val savedUri = event.outputResults.outputUri.toString()
+                        lastSavedVideoUri = savedUri
+                        persistTakeToIdea(audioUri = null, videoUri = savedUri)
+                        Toast.makeText(this, "Facecam saved & linked to Idea!", Toast.LENGTH_LONG).show()
                     } else {
                         Toast.makeText(this, "Video save error: ${event.error}", Toast.LENGTH_LONG).show()
                     }
@@ -346,20 +359,40 @@ class TeleprompterActivity : AppCompatActivity() {
 
             currentAudioTempFile?.let { file ->
                 if (file.exists()) {
-                    val saved = saveAudioToPublicMusic(file)
+                    val savedUri = saveAudioToPublicMusic(file)
                     file.delete()
-                    Toast.makeText(
-                        this,
-                        if (saved) "Audio saved to Music/YTGemini!" else "Audio recording finished.",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    if (savedUri != null) {
+                        lastSavedAudioUri = savedUri
+                        persistTakeToIdea(audioUri = savedUri, videoUri = null)
+                        Toast.makeText(this, "Audio saved & linked to Idea!", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this, "Audio recording finished.", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
             currentAudioTempFile = null
         }
     }
 
-    private fun saveAudioToPublicMusic(source: File): Boolean {
+    private fun persistTakeToIdea(audioUri: String?, videoUri: String?) {
+        if (ideaId.isBlank()) return
+        val store = VaultStore(this)
+        val idea = store.getById(ideaId) ?: return
+        if (!audioUri.isNullOrBlank()) idea.recordedAudioUri = audioUri
+        if (!videoUri.isNullOrBlank()) idea.recordedVideoUri = videoUri
+        store.upsert(idea)
+    }
+
+    private fun deliverResultAndFinish() {
+        val data = Intent().apply {
+            if (lastSavedAudioUri.isNotBlank()) putExtra(RESULT_AUDIO_URI, lastSavedAudioUri)
+            if (lastSavedVideoUri.isNotBlank()) putExtra(RESULT_VIDEO_URI, lastSavedVideoUri)
+        }
+        setResult(Activity.RESULT_OK, data)
+        finish()
+    }
+
+    private fun saveAudioToPublicMusic(source: File): String? {
         return try {
             val safeName = videoTitle.replace(Regex("[^a-zA-Z0-9_-]"), "_").take(24)
             val fileName = "YTGemini_${safeName}_${System.currentTimeMillis() % 10000}.m4a"
@@ -371,25 +404,26 @@ class TeleprompterActivity : AppCompatActivity() {
                     put(MediaStore.Audio.Media.IS_PENDING, 1)
                 }
                 val uri = contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
-                    ?: return false
+                    ?: return null
                 contentResolver.openOutputStream(uri)?.use { out ->
                     source.inputStream().use { input -> input.copyTo(out) }
                 }
                 values.clear()
                 values.put(MediaStore.Audio.Media.IS_PENDING, 0)
                 contentResolver.update(uri, values, null, null)
-                true
+                uri.toString()
             } else {
                 val dir = File(
                     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
                     "YTGemini"
                 )
                 if (!dir.exists()) dir.mkdirs()
-                source.copyTo(File(dir, fileName), overwrite = true)
-                true
+                val dest = File(dir, fileName)
+                source.copyTo(dest, overwrite = true)
+                Uri.fromFile(dest).toString()
             }
         } catch (_: Exception) {
-            false
+            null
         }
     }
 

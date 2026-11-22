@@ -66,16 +66,22 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         if (uri != null) {
-            try {
-                contentResolver.openOutputStream(uri)?.use { out ->
-                    out.write(store.exportVaultJson().toByteArray(Charsets.UTF_8))
+            Toast.makeText(this, "Packing ideas, thumbnails & logo to Drive...", Toast.LENGTH_SHORT).show()
+            Thread {
+                try {
+                    val payload = store.exportVaultJson().toByteArray(Charsets.UTF_8)
+                    contentResolver.openOutputStream(uri)?.use { out -> out.write(payload) }
+                    store.markDriveSynced()
+                    runOnUiThread {
+                        refreshUi()
+                        Toast.makeText(this, "Full Vault (Ideas + Thumbnails + Logo) saved to Drive!", Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
                 }
-                store.markDriveSynced()
-                refreshUi()
-                Toast.makeText(this, "Vault saved to your Google Drive!", Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                Toast.makeText(this, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
-            }
+            }.start()
         }
     }
 
@@ -83,14 +89,21 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            try {
-                val raw = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: ""
-                val count = store.importVaultJson(raw)
-                refreshUi()
-                Toast.makeText(this, "Restored $count ideas from your Drive vault!", Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                Toast.makeText(this, "Could not read vault file", Toast.LENGTH_LONG).show()
-            }
+            Toast.makeText(this, "Restoring ideas, thumbnails & logo...", Toast.LENGTH_SHORT).show()
+            Thread {
+                try {
+                    val raw = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: ""
+                    val count = store.importVaultJson(raw)
+                    runOnUiThread {
+                        refreshUi()
+                        Toast.makeText(this, "Restored $count ideas + thumbnails & brand logo!", Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this, "Could not read vault file", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }.start()
         }
     }
 
@@ -175,7 +188,7 @@ class MainActivity : AppCompatActivity() {
             txtChannelNumbers.text = if (parts.isNotEmpty()) parts.joinToString("  •  ") else "Tap to refresh stats"
         } else {
             txtChannelName.text = "Connect YouTube Channel"
-            txtChannelNumbers.text = "Tap to sync with just your @handle (Zero API Key)"
+            txtChannelNumbers.text = "Tap to connect your YouTube @handle"
         }
 
         val watchMins = store.getWatchMinsToday()
@@ -312,7 +325,7 @@ class MainActivity : AppCompatActivity() {
             YouTubeDataClient.fetchChannelStatsNoApiKey(handle) { result ->
                 runOnUiThread {
                     btnSync.isEnabled = true
-                    btnSync.text = "Sync Channel (No API Key)"
+                    btnSync.text = "Sync Channel"
                     result.fold(
                         onSuccess = { stats ->
                             store.saveChannelStats(stats)
